@@ -33,7 +33,7 @@ export function PropertyDetails({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl bg-clip-text text-transparent bg-blue-gradient">Property Details</CardTitle>
+        <CardTitle className="text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">Property Details</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

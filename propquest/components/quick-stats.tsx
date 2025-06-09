@@ -11,26 +11,26 @@ export function QuickStats({ bedrooms, bathrooms, builtUpArea, parking }: QuickS
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl bg-clip-text text-transparent bg-blue-gradient">Quick Stats</CardTitle>
+        <CardTitle className="text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">Quick Stats</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <div className="text-2xl font-bold bg-clip-text text-transparent bg-blue-gradient">{bedrooms}</div>
+            <div className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">{bedrooms}</div>
             <div className="text-sm text-gray-600">Bedrooms</div>
           </div>
           <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <div className="text-2xl font-bold bg-clip-text text-transparent bg-blue-gradient">{bathrooms}</div>
+            <div className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">{bathrooms}</div>
             <div className="text-sm text-gray-600">Bathrooms</div>
           </div>
           <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <div className="text-2xl font-bold bg-clip-text text-transparent bg-blue-gradient">
+            <div className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
               {builtUpArea.split(" ")[0]}
             </div>
             <div className="text-sm text-gray-600">sq ft</div>
           </div>
           <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <div className="text-2xl font-bold bg-clip-text text-transparent bg-blue-gradient">{parking}</div>
+            <div className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">{parking}</div>
             <div className="text-sm text-gray-600">Parking</div>
           </div>
         </div>

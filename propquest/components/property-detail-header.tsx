@@ -11,13 +11,13 @@ export function PropertyDetailHeader({ referrer }: PropertyDetailHeaderProps) {
       <div className="flex items-center justify-between max-w-7xl mx-auto">
         <div className="flex items-center space-x-4">
           <BackNavigation referrer={referrer} />
-          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-blue-gradient">PropQuest</h1>
+          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">PropQuest</h1>
         </div>
         <div className="flex items-center space-x-4">
           <Button variant="ghost" size="sm">
             Sign In
           </Button>
-          <Button size="sm" className="bg-blue-gradient hover:opacity-90 border-0">
+          <Button size="sm" className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 hover:opacity-90 border-0">
             Sign Up
           </Button>
         </div>

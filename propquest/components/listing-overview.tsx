@@ -26,7 +26,7 @@ export function ListingOverview({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl bg-clip-text text-transparent bg-blue-gradient">Listing Overview</CardTitle>
+        <CardTitle className="text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">Listing Overview</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
@@ -54,7 +54,7 @@ export function ListingOverview({
         </div>
 
         <div className="bg-blue-50 p-4 rounded-lg">
-          <div className="text-3xl font-bold bg-clip-text text-transparent bg-blue-gradient">
+          <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
             {price}
             <span className="text-lg font-normal text-gray-600 ml-2">{priceType}</span>
           </div>

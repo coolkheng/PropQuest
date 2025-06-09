@@ -78,7 +78,8 @@ export default function HomePage() {
             onPropertyClick={handlePropertyClick}
           />
         </div>
-
+        
+      
         <div className="w-[40%] h-full">
           <AiChatPanel />
         </div>
