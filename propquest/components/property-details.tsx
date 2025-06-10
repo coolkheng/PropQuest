@@ -58,6 +58,11 @@ export function PropertyDetails({
               <span className="text-gray-600">Unit Type:</span>
               <span className="font-medium">{unitType}</span>
             </div> */}
+            <div className="flex justify-between">
+              <span className="text-gray-600">Furnishing:</span>
+              <span className="font-medium">{furnishing}</span>
+            </div>
+
           </div>
 
           <div className="space-y-3">
@@ -83,17 +88,10 @@ export function PropertyDetails({
               <span className="text-gray-600">Parking:</span>
               <div className="flex items-center">
                 <Car className="h-4 w-4 mr-1" />
-                <span className="font-medium">{3}</span>
+                <span className="font-medium">{1}</span>
               </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Storeys:</span>
-              <span className="font-medium">{1}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Furnishing:</span>
-              <span className="font-medium">{furnishing}</span>
-            </div>
+          
           </div>
         </div>
       </CardContent>

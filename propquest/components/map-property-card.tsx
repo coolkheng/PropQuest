@@ -24,7 +24,7 @@ export function MapPropertyCard({ property, isHovered, onMouseEnter, onMouseLeav
   return (
     <Link href={`/property/${property.id}`} onClick={onClick}>
       <Card
-        className="w-[200px] h-[240px] bg-white shadow-lg transition-all duration-200 cursor-pointer flex-shrink-0"
+        className="w-[200px] h-[240px] bg-white shadow-lg transition-all duration-200 cursor-pointer flex-shrink-0 gap-2 py-0"
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         style={{
@@ -48,7 +48,7 @@ export function MapPropertyCard({ property, isHovered, onMouseEnter, onMouseLeav
         </div>
 
         {/* Content Section */}
-        <CardContent className="p-3 h-[120px] flex flex-col justify-between">
+        <CardContent className="p-1 h-[120px] flex flex-col justify-between">
           {/* Property Title */}
           <h3 className="font-medium text-sm mb-2 line-clamp-2 overflow-hidden leading-tight">
             {property.name.length > 50 ? `${property.name.substring(0, 50)}...` : property.name}
