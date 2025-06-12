@@ -31,7 +31,7 @@ interface MapViewProps {
 export function MapView({ properties, hoveredProperty, onPropertyHover, onPropertyClick }: MapViewProps) {
   return (
     <div className="w-full h-full relative">
-      <MapBackground hoveredProperty={hoveredProperty} />
+      <MapBackground Property={properties} hoveredProperty={hoveredProperty} />
       <PropertyCardsCarousel
         properties={properties}
         hoveredProperty={hoveredProperty}
