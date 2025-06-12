@@ -7,10 +7,10 @@ interface ListingOverviewProps {
   listingType: string
   location: string
   dateListed: string
-  dateUpdated: string
-  referenceNumber: string
+  // dateUpdated: string
+  // referenceNumber: string
   price: string
-  priceType: string
+  // priceType: string
 }
 
 export function ListingOverview({
@@ -18,15 +18,15 @@ export function ListingOverview({
   listingType,
   location,
   dateListed,
-  dateUpdated,
-  referenceNumber,
+  // dateUpdated,
+  // referenceNumber,
   price,
-  priceType,
+  // priceType,
 }: ListingOverviewProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl bg-clip-text text-transparent bg-blue-gradient">Listing Overview</CardTitle>
+        <CardTitle className="text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">Listing Overview</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
@@ -43,20 +43,20 @@ export function ListingOverview({
             <Calendar className="h-5 w-5 mr-2" />
             <span>Listed: {new Date(dateListed).toLocaleDateString()}</span>
           </div>
-          <div className="flex items-center text-gray-600">
+          {/* <div className="flex items-center text-gray-600">
             <Hash className="h-5 w-5 mr-2" />
             <span>Ref: {referenceNumber}</span>
           </div>
           <div className="flex items-center text-gray-600">
             <Calendar className="h-5 w-5 mr-2" />
             <span>Updated: {new Date(dateUpdated).toLocaleDateString()}</span>
-          </div>
+          </div> */}
         </div>
 
         <div className="bg-blue-50 p-4 rounded-lg">
-          <div className="text-3xl font-bold bg-clip-text text-transparent bg-blue-gradient">
+          <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
             {price}
-            <span className="text-lg font-normal text-gray-600 ml-2">{priceType}</span>
+            {/* <span className="text-lg font-normal text-gray-600 ml-2">{priceType}</span> */}
           </div>
         </div>
       </CardContent>

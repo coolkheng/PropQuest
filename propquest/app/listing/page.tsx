@@ -1,95 +1,72 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { TopBar } from "@/components/top-bar"
-import { FloatingSearchBar } from "@/components/floating-search-bar"
-import { ListingControls } from "@/components/listing-controls"
-import { ListingHeader } from "@/components/listing-header"
-import { PropertyGrid } from "@/components/property-grid"
-import { LoadMoreSection } from "@/components/load-more-section"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { TopBar } from "@/components/top-bar";
+import { FloatingSearchBar } from "@/components/floating-search-bar";
+import { ListingControls } from "@/components/listing-controls";
+import { ListingHeader } from "@/components/listing-header";
+import { PropertyGrid } from "@/components/property-grid";
+import { LoadMoreSection } from "@/components/load-more-section";
 
-const properties = [
-  {
-    id: 1,
-    name: "Victor Hugo - Cozy charming studio heart 16e",
-    rating: 5.0,
-    price: 47,
-    image: "/placeholder.svg?height=200&width=300",
-    location: "SS2, Petaling Jaya",
-    amenities: ["WiFi", "Kitchen", "AC", "Parking"],
-  },
-  {
-    id: 2,
-    name: "GuestReady - Apartment Near Bercy Park",
-    rating: 4.9,
-    price: 73,
-    image: "/placeholder.svg?height=200&width=300",
-    location: "Damansara, Petaling Jaya",
-    amenities: ["WiFi", "Pool", "Gym", "Security"],
-  },
-  {
-    id: 3,
-    name: "Location Petaling Jaya 20",
-    rating: 5.0,
-    price: 63,
-    image: "/placeholder.svg?height=200&width=300",
-    location: "Section 14, Petaling Jaya",
-    amenities: ["WiFi", "Kitchen", "Balcony", "Parking"],
-  },
-  {
-    id: 4,
-    name: "Chic neigh serviced apartment",
-    rating: 5.0,
-    price: 85,
-    image: "/placeholder.svg?height=200&width=300",
-    location: "Section 17, Petaling Jaya",
-    amenities: ["WiFi", "Pool", "Concierge", "Gym"],
-  },
-  {
-    id: 5,
-    name: "Modern Studio in PJ Central",
-    rating: 4.8,
-    price: 55,
-    image: "/placeholder.svg?height=200&width=300",
-    location: "PJ Central, Petaling Jaya",
-    amenities: ["WiFi", "Kitchen", "AC", "Near LRT"],
-  },
-  {
-    id: 6,
-    name: "Luxury Condo with City View",
-    rating: 4.7,
-    price: 95,
-    image: "/placeholder.svg?height=200&width=300",
-    location: "Section 13, Petaling Jaya",
-    amenities: ["WiFi", "Pool", "Gym", "City View"],
-  },
-]
+// ✅ Locally define the Property interface
+interface Property {
+  _id: string;
+  url: string;
+  title: string;
+  address: string;
+  price: string;
+  beds: string;
+  baths: string;
+  sqft: string;
+  psf: string;
+  house_type: string;
+  furnishing: string;
+  lease_type: string;
+  date_listed: string;
+  images: string[];
+  facilities: string[];
+}
 
 export default function ListingPage() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
-  const handlePropertyClick = (propertyId: number) => {
-    sessionStorage.setItem("propertyDetailReferrer", "/listing")
-  }
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        const res = await fetch("/api/properties");
+        if (!res.ok) throw new Error("Failed to fetch properties");
+        const data: Property[] = await res.json();
+        setProperties(data);
+      } catch (error) {
+        console.error("Error fetching properties:", error);
+      }
+    };
+
+    fetchProperties();
+  }, []);
+
+  const handlePropertyClick = (propertyId: string) => {
+    sessionStorage.setItem("propertyDetailReferrer", "/listing");
+    router.push(`/property/${propertyId}`);
+  };
 
   const handleFilterClick = () => {
-    console.log("Filter clicked")
-  }
+    console.log("Filter clicked");
+  };
 
   const handleLoadMore = () => {
-    setIsLoading(true)
-    // Simulate loading
-    setTimeout(() => {
-      setIsLoading(false)
-    }, 1000)
-  }
+    setIsLoading(true);
+    setTimeout(() => setIsLoading(false), 1000);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <TopBar />
 
-      {/* Floating Search Bar */}
       <div className="relative">
         <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-10 w-full max-w-2xl px-4">
           <FloatingSearchBar
@@ -102,10 +79,16 @@ export default function ListingPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-6 pt-24">
         <ListingControls onFilterClick={handleFilterClick} />
-        <ListingHeader title="Properties in Petaling Jaya" resultCount={46} />
-        <PropertyGrid properties={properties} onPropertyClick={handlePropertyClick} />
+        <ListingHeader
+          title="Properties in Petaling Jaya"
+          resultCount={properties.length}
+        />
+        <PropertyGrid
+          properties={properties}
+          onPropertyClick={(id) => handlePropertyClick(id)}
+        />
         <LoadMoreSection onLoadMore={handleLoadMore} isLoading={isLoading} />
       </div>
     </div>
-  )
+  );
 }
