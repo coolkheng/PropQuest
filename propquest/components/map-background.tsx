@@ -1,36 +1,104 @@
-import { PropertyMarker } from "@/components/property-marker"
+import { useEffect, useRef } from 'react';
+import { loadModules } from 'esri-loader';
 
 interface MapBackgroundProps {
-  hoveredProperty: number | null
+  hoveredProperty: string | null;
 }
 
 export function MapBackground({ hoveredProperty }: MapBackgroundProps) {
-  const markerPositions = ["top-1/3 left-1/2", "top-1/2 left-1/3", "bottom-1/3 left-2/3", "top-2/3 right-1/4"]
-  const markerPrices = [359, 563, 447, 365]
+  const mapRef = useRef(null);
+
+  useEffect(() => {
+    loadModules([
+      "esri/config",
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/rest/locator",
+      "esri/Graphic"
+    ], { css: true }).then(([esriConfig, Map, MapView, locator, Graphic]) => {
+      // Use your API key from .env
+      esriConfig.apiKey = process.env.MAP_ARCGS_URI;
+
+      const map = new Map({ basemap: "arcgis-streets" });
+
+      const view = new MapView({
+        container: mapRef.current,
+        map: map,
+        center: [101.6869, 3.1390], // default center (Kuala Lumpur)
+        zoom: 12
+      });
+
+      // Address to geocode
+      const address = {
+        address: "1 Utama Shopping Centre, Petaling Jaya, Malaysia"
+      };
+      
+      const geocodeUrl = "http://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer";
+
+      // Use the geocoder
+      locator.addressToLocations(geocodeUrl,{
+        address,
+        outFields: ["*"]
+      }).then((results: any[]) => {
+        if (results.length) {
+          const location = results[0].location;
+
+          // Create marker graphic
+          const point = {
+            type: "point",
+            longitude: location.x,
+            latitude: location.y
+          };
+
+          const marker_symbol = {
+            type: "simple-marker",
+            color: "blue",
+            size: "12px",
+            outline: {
+              color: [255, 255, 255],
+              width: 1
+            }
+          };
+
+          const text_symbol = {
+            type: "text",
+            color: "black",
+            text: "RM550",
+            font: {
+              size: 12,
+              family: "Arial"
+            },
+            yoffset: -20, // Move text above the point
+            haloColor: "white",
+            haloSize: "1px"
+          };
+
+          
+
+          view.graphics.addMany([
+            new Graphic({
+              geometry: point,
+              symbol: marker_symbol
+            }),
+            new Graphic({
+              geometry: point,
+              symbol: text_symbol
+            })
+          ])
+          view.goTo({ center: point, zoom: 15 });
+        } else {
+          console.warn("No location found for address");
+        }
+      }).catch((error: any) => {
+        console.error("Geocoding error:", error);
+      });
+
+    }).catch((err) => {
+      console.error("ArcGIS load error:", err);
+    });
+  }, []);
 
   return (
-    <div className="w-full h-full bg-gradient-to-br from-green-100 to-blue-100 relative overflow-hidden">
-      {/* Simulated Map of Petaling Jaya */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-1/4 left-1/3 w-32 h-24 bg-green-200 rounded-lg"></div>
-        <div className="absolute top-1/2 left-1/4 w-40 h-32 bg-blue-200 rounded-lg"></div>
-        <div className="absolute bottom-1/3 right-1/3 w-36 h-28 bg-green-300 rounded-lg"></div>
-      </div>
-
-      {/* Location Labels */}
-      <div className="absolute top-1/4 left-1/4 text-sm font-medium text-gray-700">SS2</div>
-      <div className="absolute top-1/2 left-1/2 text-lg font-bold text-gray-800">Petaling Jaya</div>
-      <div className="absolute bottom-1/3 right-1/4 text-sm font-medium text-gray-700">Damansara</div>
-
-      {/* Property Markers */}
-      {markerPositions.map((position, index) => (
-        <PropertyMarker
-          key={index}
-          price={markerPrices[index]}
-          isHovered={hoveredProperty === index + 1}
-          position={position}
-        />
-      ))}
-    </div>
-  )
+    <div ref={mapRef} className="w-full h-full rounded-xl shadow-lg" />
+  );
 }

@@ -3,19 +3,28 @@
 import { MapPropertyCard } from "./map-property-card"
 
 interface Property {
-  id: number
-  name: string
-  rating: number
-  price: number
-  image: string
-  bestFor?: boolean
+  _id: string;
+  url: string;
+  title: string;
+  address: string;
+  price: string;
+  beds: string;
+  baths: string;
+  sqft: string;
+  psf: string;
+  house_type: string;
+  furnishing: string;
+  lease_type: string;
+  date_listed: string;
+  images: string[];
+  facilities: string[];
 }
 
 interface PropertyCardsCarouselProps {
   properties: Property[]
-  hoveredProperty: number | null
-  onPropertyHover: (id: number | null) => void
-  onPropertyClick: (id: number) => void
+  hoveredProperty: string | null
+  onPropertyHover: (id: string | null) => void
+  onPropertyClick: (id: string) => void
 }
 
 export function PropertyCardsCarousel({
@@ -29,12 +38,12 @@ export function PropertyCardsCarousel({
       <div className="flex space-x-3 overflow-x-auto pb-2">
         {properties.map((property) => (
           <MapPropertyCard
-            key={property.id}
+            key={property._id}
             property={property}
-            isHovered={hoveredProperty === property.id}
-            onMouseEnter={() => onPropertyHover(property.id)}
+            isHovered={hoveredProperty === property._id}
+            onMouseEnter={() => onPropertyHover(property._id)}
             onMouseLeave={() => onPropertyHover(null)}
-            onClick={() => onPropertyClick(property.id)}
+            onClick={() => onPropertyClick(property._id)}
           />
         ))}
       </div>
