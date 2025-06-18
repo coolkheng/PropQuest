@@ -17,9 +17,9 @@ export function BackNavigation({ referrer }: BackNavigationProps) {
 
   const getBackButtonText = () => {
     if (referrer === "/listing") {
-      return "Back to List"
+      return "Back"
     }
-    return "Back to Map"
+    return "Back"
   }
 
   return (

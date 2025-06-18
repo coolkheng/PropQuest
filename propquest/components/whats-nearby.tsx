@@ -87,7 +87,7 @@ export function WhatsNearby({ amenities }: WhatsNearbyProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl bg-clip-text text-transparent bg-blue-gradient">What's nearby</CardTitle>
+        <CardTitle className="text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">What's nearby</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         {/* Category Pills */}

@@ -27,8 +27,17 @@ export function AiChatPanel() {
         <div className="flex justify-end">
           <div className="bg-blue-600 text-white p-4 rounded-2xl rounded-br-md max-w-sm">
             <p className="text-sm leading-relaxed">
-              Find me cosy apartments in Petaling Jaya for a long term, in a quiet safe area, the price should be
-              RM40-70 per day, ability to check-in any time, non-smoking, I expect modern Instagram worthy apartments
+              Hi, I’m looking to buy a residential property in Petaling Jaya, Kuala Lumpur.
+                  My requirements are:
+                  Type: Condominium or serviced apartment
+                  Budget: Maximum RM 800,000
+                  Size: At least 900 sq ft
+                  Bedrooms: Minimum 3 bedrooms
+                  Parking: At least 2 parking lots
+                  Facilities: Must have a gym and swimming pool
+                  Accessibility: Preferably near an LRT or MRT station (within 1 km)
+                  Tenure: Freehold preferred, but open to leasehold if location is strategic
+                  Move-in condition: Ready-to-move or minimal renovation needed
             </p>
           </div>
         </div>
@@ -45,7 +54,7 @@ export function AiChatPanel() {
             <div className="bg-gray-100 p-4 rounded-2xl rounded-bl-md">
               <p className="text-sm text-gray-700">
                 But based on your request, the best fit for you would be{" "}
-                <span className="text-blue-600 font-medium">Victor Hugo - Cosy charming studio heart 16e.</span>
+                <span className="text-blue-600 font-medium">BotaniQa Residence</span>
               </p>
             </div>
           </div>

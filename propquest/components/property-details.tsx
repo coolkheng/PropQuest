@@ -4,36 +4,32 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 interface PropertyDetailsProps {
   propertyType: string
   tenure: string
-  titleType: string
-  landArea: string
+  // titleType: string
+  // landArea: string
   builtUpArea: string
-  unitType: string
+  // unitType: string
   pricePerSqFtBuiltUp: string
   bedrooms: number
   bathrooms: number
-  parking: number
-  storeys: number
   furnishing: string
 }
 
 export function PropertyDetails({
   propertyType,
   tenure,
-  titleType,
-  landArea,
+  // titleType,
+  // landArea,
   builtUpArea,
-  unitType,
+  // unitType,
   pricePerSqFtBuiltUp,
   bedrooms,
   bathrooms,
-  parking,
-  storeys,
   furnishing,
 }: PropertyDetailsProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl bg-clip-text text-transparent bg-blue-gradient">Property Details</CardTitle>
+        <CardTitle className="text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">Property Details</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -46,22 +42,27 @@ export function PropertyDetails({
               <span className="text-gray-600">Tenure:</span>
               <span className="font-medium">{tenure}</span>
             </div>
-            <div className="flex justify-between">
+            {/* <div className="flex justify-between">
               <span className="text-gray-600">Title Type:</span>
               <span className="font-medium">{titleType}</span>
-            </div>
-            <div className="flex justify-between">
+            </div> */}
+            {/* <div className="flex justify-between">
               <span className="text-gray-600">Land Area:</span>
               <span className="font-medium">{landArea}</span>
-            </div>
+            </div> */}
             <div className="flex justify-between">
               <span className="text-gray-600">Built-up Area:</span>
               <span className="font-medium">{builtUpArea}</span>
             </div>
-            <div className="flex justify-between">
+            {/* <div className="flex justify-between">
               <span className="text-gray-600">Unit Type:</span>
               <span className="font-medium">{unitType}</span>
+            </div> */}
+            <div className="flex justify-between">
+              <span className="text-gray-600">Furnishing:</span>
+              <span className="font-medium">{furnishing}</span>
             </div>
+
           </div>
 
           <div className="space-y-3">
@@ -87,17 +88,10 @@ export function PropertyDetails({
               <span className="text-gray-600">Parking:</span>
               <div className="flex items-center">
                 <Car className="h-4 w-4 mr-1" />
-                <span className="font-medium">{parking}</span>
+                <span className="font-medium">{1}</span>
               </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Storeys:</span>
-              <span className="font-medium">{storeys}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Furnishing:</span>
-              <span className="font-medium">{furnishing}</span>
-            </div>
+          
           </div>
         </div>
       </CardContent>
