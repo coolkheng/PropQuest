@@ -1,11 +1,9 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { PropertyDetailHeader } from "@/components/property-detail-header"
-import { PropertyMainContent } from "@/components/property-main-content"
-import { PropertySidebar } from "@/components/property-sidebar"
-
-
+import { useState, useEffect } from "react";
+import { PropertyDetailHeader } from "@/components/property-detail-header";
+import { PropertyMainContent } from "@/components/property-main-content";
+import { PropertySidebar } from "@/components/property-sidebar";
 
 // Sample property data - in a real app, this would come from an API
 // const propertyData = {
@@ -93,52 +91,56 @@ interface Property {
   facilities: string[];
 }
 
-export default function PropertyDetailPage({ params }: { params: { id: string } }) {
-  const [referrer, setReferrer] = useState<string>("/")
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [propertyData, setPropertyData] = useState<Property | null>(null)
-  
+export default function PropertyDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const [referrer, setReferrer] = useState<string>("/");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [propertyData, setPropertyData] = useState<Property | null>(null);
+
   useEffect(() => {
-    const storedReferrer = sessionStorage.getItem("propertyDetailReferrer")
+    const storedReferrer = sessionStorage.getItem("propertyDetailReferrer");
     if (storedReferrer) {
-      setReferrer(storedReferrer)
-      sessionStorage.removeItem("propertyDetailReferrer")
+      setReferrer(storedReferrer);
+      sessionStorage.removeItem("propertyDetailReferrer");
     } else if (document.referrer) {
       try {
-        const referrerUrl = new URL(document.referrer)
-        const referrerPath = referrerUrl.pathname
+        const referrerUrl = new URL(document.referrer);
+        const referrerPath = referrerUrl.pathname;
         if (referrerPath.includes("/listing")) {
-          setReferrer("/listing")
+          setReferrer("/listing");
         } else if (referrerPath === "/" || referrerPath.includes("map")) {
-          setReferrer("/")
+          setReferrer("/");
         }
       } catch (error) {
-        setReferrer("/")
+        setReferrer("/");
       }
     }
-  }, [])
+  }, []);
 
-   useEffect(() => {
+  useEffect(() => {
     const fetchProperty = async () => {
       try {
-        setLoading(true)
-        const { id } =await params
+        setLoading(true);
+        const { id } = await params;
 
-        const res = await fetch(`/api/properties/${id}`)
-        if (!res.ok) throw new Error("Failed to fetch property data")
-        const data = await res.json()
-        setPropertyData(data)
+        const res = await fetch(`http://localhost:5000/api/properties/${id}`);
+        if (!res.ok) throw new Error("Failed to fetch property data");
+        const data = await res.json();
+        setPropertyData(data);
       } catch (err) {
-        console.error(err)
-        setError("Property not found or server error")
+        console.error(err);
+        setError("Property not found or server error");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchProperty()
-  }, [params])
+    fetchProperty();
+  }, [params]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -146,12 +148,12 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
       <div className="max-w-7xl mx-auto px-4 py-6">
         {propertyData && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <PropertyMainContent propertyData={propertyData} />
             <PropertySidebar propertyData={propertyData} />
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }

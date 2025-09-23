@@ -8,6 +8,7 @@ import { ListingControls } from "@/components/listing-controls";
 import { ListingHeader } from "@/components/listing-header";
 import { PropertyGrid } from "@/components/property-grid";
 import { LoadMoreSection } from "@/components/load-more-section";
+import axios from "axios";
 
 // ✅ Locally define the Property interface
 interface Property {
@@ -37,9 +38,8 @@ export default function ListingPage() {
   useEffect(() => {
     const fetchProperties = async () => {
       try {
-        const res = await fetch("/api/properties");
-        if (!res.ok) throw new Error("Failed to fetch properties");
-        const data: Property[] = await res.json();
+        const res = await axios.get<Property[]>("http://localhost:5000/api/properties");
+        const data: Property[] = res.data;
         setProperties(data);
       } catch (error) {
         console.error("Error fetching properties:", error);

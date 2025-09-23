@@ -1,12 +1,11 @@
-"use client"
+"use client";
 
 import { useState, useEffect } from "react";
-import { TopBar } from "@/components/top-bar"
-import { MapControls } from "@/components/map-controls"
-import { MapView } from "@/components/map-view"
-import { AiChatPanel } from "@/components/ai-chat-panel"
-
-
+import { TopBar } from "@/components/top-bar";
+import { MapControls } from "@/components/map-controls";
+import { MapView } from "@/components/map-view";
+import { AiChatPanel } from "@/components/ai-chat-panel";
+import axios from "axios";
 
 interface Property {
   _id: string;
@@ -26,35 +25,32 @@ interface Property {
   facilities: string[];
 }
 
-
 export default function HomePage() {
   const [properties, setProperties] = useState<Property[]>([]);
-  const [searchQuery, setSearchQuery] = useState("")
-  const [hoveredProperty, setHoveredProperty] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [hoveredProperty, setHoveredProperty] = useState<string | null>(null);
 
   useEffect(() => {
-      const fetchProperties = async () => {
-        try {
-          const res = await fetch("/api/properties");
-          if (!res.ok) throw new Error("Failed to fetch properties");
-          const data: Property[] = await res.json();
-          setProperties(data);
-        } catch (error) {
-          console.error("Error fetching properties:", error);
-        }
-      };
-  
-      fetchProperties();
-    }, []);
+    const fetchProperties = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/properties");
+        const data: Property[] = res.data;
+        setProperties(data);
+      } catch (error) {
+        console.error("Error fetching properties:", error);
+      }
+    };
 
+    fetchProperties();
+  }, []);
 
   const handlePropertyClick = (propertyId: string) => {
-    sessionStorage.setItem("propertyDetailReferrer", "/")
-  }
+    sessionStorage.setItem("propertyDetailReferrer", "/");
+  };
 
   const handleFilterClick = () => {
-    console.log("Filter clicked")
-  }
+    console.log("Filter clicked");
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -76,12 +72,11 @@ export default function HomePage() {
             onPropertyClick={handlePropertyClick}
           />
         </div>
-        
-      
+
         <div className="w-[40%] h-full">
           <AiChatPanel />
         </div>
       </div>
     </div>
-  )
+  );
 }
