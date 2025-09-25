@@ -1,61 +1,64 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
+import axios from "axios";
 
-import { useState, useRef, useEffect } from "react"
-import { MessageSquare, ThumbsUp, ThumbsDown, Send } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { useState, useRef, useEffect } from "react";
+import { MessageSquare, ThumbsUp, ThumbsDown, Send } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface ChatMessage {
-  id: string
-  type: "user" | "ai"
-  content: string
-  timestamp: Date
-  isTyping?: boolean
+  id: string;
+  type: "user" | "ai";
+  content: string;
+  timestamp: Date;
+  isTyping?: boolean;
 }
 
 export function AiChatPanel() {
-  const [aiRequest, setAiRequest] = useState("")
-  const [isAiTyping, setIsAiTyping] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [aiRequest, setAiRequest] = useState("");
+  const [isAiTyping, setIsAiTyping] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    
     {
       id: "2",
       type: "ai",
-      content: "Hi! I'm your AI assistant. How can I help you find the perfect property today? You can tell me about your budget, preferred location, amenities, or any other details that matter to you. ",
+      content:
+        "Hi! I'm your AI assistant. How can I help you find the perfect property today? You can tell me about your budget, preferred location, amenities, or any other details that matter to you. ",
       timestamp: new Date(),
     },
-   
-  ])
+  ]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
-    scrollToBottom()
-  }, [messages, isAiTyping])
+    scrollToBottom();
+  }, [messages, isAiTyping]);
 
   const generateAiResponse = (userMessage: string): string => {
     // Simple response generation based on keywords
-    const lowerMessage = userMessage.toLowerCase()
+    const lowerMessage = userMessage.toLowerCase();
 
     if (lowerMessage.includes("price") || lowerMessage.includes("budget")) {
-      return "I understand you're looking for properties within a specific budget. Let me filter the results based on your price range."
+      return "I understand you're looking for properties within a specific budget. Let me filter the results based on your price range.";
     }
 
     if (lowerMessage.includes("location") || lowerMessage.includes("area")) {
-      return "Location is key! I'll focus on properties in your preferred areas with good accessibility and amenities."
+      return "Location is key! I'll focus on properties in your preferred areas with good accessibility and amenities.";
     }
 
-    if (lowerMessage.includes("amenities") || lowerMessage.includes("facilities")) {
-      return "Great! I'll prioritize properties with the amenities you mentioned. Let me update the search results."
+    if (
+      lowerMessage.includes("amenities") ||
+      lowerMessage.includes("facilities")
+    ) {
+      return "Great! I'll prioritize properties with the amenities you mentioned. Let me update the search results.";
     }
 
     if (lowerMessage.includes("thank") || lowerMessage.includes("thanks")) {
-      return "You're welcome! I'm here to help you find the perfect property. Feel free to ask if you need anything else."
+      return "You're welcome! I'm here to help you find the perfect property. Feel free to ask if you need anything else.";
     }
 
     // Default responses
@@ -64,13 +67,15 @@ export function AiChatPanel() {
       "Let me search for properties that match your criteria. I'll have results for you shortly.",
       "Based on your preferences, I'm filtering through our property database to find the best matches.",
       "I understand your needs. Let me refine the search results to better match what you're looking for.",
-    ]
+    ];
 
-    return defaultResponses[Math.floor(Math.random() * defaultResponses.length)]
-  }
+    return defaultResponses[
+      Math.floor(Math.random() * defaultResponses.length)
+    ];
+  };
 
   const handleSendMessage = async () => {
-    if (aiRequest.trim() === "") return
+    if (aiRequest.trim() === "") return;
 
     // Add user message
     const newUserMessage: ChatMessage = {
@@ -78,43 +83,60 @@ export function AiChatPanel() {
       type: "user",
       content: aiRequest.trim(),
       timestamp: new Date(),
-    }
+    };
 
-    const userMessageContent = aiRequest.trim()
-    setMessages((prev) => [...prev, newUserMessage])
-    setAiRequest("")
-    setIsAiTyping(true)
+    const userMessageContent = aiRequest.trim();
+    setMessages((prev) => [...prev, newUserMessage]);
+    setAiRequest("");
+    setIsAiTyping(true);
 
-    // Simulate AI processing time
-    setTimeout(
-      () => {
-        const aiResponse: ChatMessage = {
+    try {
+      // Send user message to backend
+      const response = await axios.post("/api/chat", {
+        message: userMessageContent,
+      });
+
+      // Add AI response
+      const aiResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: "ai",
+        content: response.data.reply,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, aiResponse]);
+    } catch (error) {
+      console.error("Error generating AI response:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
           id: (Date.now() + 1).toString(),
           type: "ai",
-          content: generateAiResponse(userMessageContent),
+          content: "Sorry, I couldn't process your request.",
           timestamp: new Date(),
-        }
-
-        setMessages((prev) => [...prev, aiResponse])
-        setIsAiTyping(false)
-      },
-      1500 + Math.random() * 1000,
-    ) // Random delay between 1.5-2.5 seconds
-  }
+        },
+      ]);
+    } finally {
+      setIsAiTyping(false);
+    }
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      handleSendMessage()
+      e.preventDefault();
+      handleSendMessage();
     }
-  }
+  };
 
   const handleFeedback = (messageId: string, type: "like" | "dislike") => {
-    console.log(`Feedback for message ${messageId}: ${type}`)
+    console.log(`Feedback for message ${messageId}: ${type}`);
     // Here you would typically send feedback to your backend
 
     // Visual feedback
-    const feedbackMessage = type === "like" ? "Thanks for the feedback! 👍" : "I'll try to improve my responses. 👎"
+    const feedbackMessage =
+      type === "like"
+        ? "Thanks for the feedback! 👍"
+        : "I'll try to improve my responses. 👎";
 
     setTimeout(() => {
       const feedbackResponse: ChatMessage = {
@@ -122,22 +144,28 @@ export function AiChatPanel() {
         type: "ai",
         content: feedbackMessage,
         timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, feedbackResponse])
-    }, 500)
-  }
+      };
+      setMessages((prev) => [...prev, feedbackResponse]);
+    }, 500);
+  };
 
   const TypingIndicator = () => (
     <div className="flex justify-start">
       <div className="bg-gray-100 p-4 rounded-2xl rounded-bl-md max-w-sm">
         <div className="flex space-x-1">
           <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+          <div
+            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+            style={{ animationDelay: "0.1s" }}
+          ></div>
+          <div
+            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+            style={{ animationDelay: "0.2s" }}
+          ></div>
         </div>
       </div>
     </div>
-  )
+  );
 
   return (
     <div className="w-full h-full bg-white flex flex-col">
@@ -146,9 +174,12 @@ export function AiChatPanel() {
         <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <MessageSquare className="h-6 w-6 text-blue-600" />
         </div>
-        <h2 className="text-xl font-bold text-gray-900 mb-3">AI Property Search</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-3">
+          AI Property Search
+        </h2>
         <p className="text-sm text-gray-500 leading-relaxed">
-          I can analyse photos, data, surroundings for best fit. So feel free to enter whatever details you like
+          I can analyse photos, data, surroundings for best fit. So feel free to
+          enter whatever details you like
         </p>
       </div>
 
@@ -162,7 +193,10 @@ export function AiChatPanel() {
                 <div className="bg-blue-600 text-white p-4 rounded-2xl rounded-br-md max-w-sm">
                   <p className="text-sm leading-relaxed">{message.content}</p>
                   <p className="text-xs text-blue-200 mt-2">
-                    {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {message.timestamp.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </p>
                 </div>
               </div>
@@ -173,7 +207,10 @@ export function AiChatPanel() {
                   <div className="bg-gray-100 p-4 rounded-2xl rounded-bl-md">
                     <p className="text-sm text-gray-700">{message.content}</p>
                     <p className="text-xs text-gray-500 mt-2">
-                      {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {message.timestamp.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </p>
                   </div>
                 </div>
@@ -181,28 +218,30 @@ export function AiChatPanel() {
             )}
 
             {/* Feedback Buttons - Only show for AI messages and only for the last AI message */}
-            {message.type === "ai" && index === messages.length - 1 && !isAiTyping && (
-              <div className="flex justify-start mt-2">
-                <div className="flex space-x-3">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="p-2 rounded-full hover:bg-blue-50 bg-transparent"
-                    onClick={() => handleFeedback(message.id, "like")}
-                  >
-                    <ThumbsUp className="h-4 w-4 text-blue-600" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="p-2 rounded-full hover:bg-gray-50 bg-transparent"
-                    onClick={() => handleFeedback(message.id, "dislike")}
-                  >
-                    <ThumbsDown className="h-4 w-4 text-gray-400" />
-                  </Button>
+            {message.type === "ai" &&
+              index === messages.length - 1 &&
+              !isAiTyping && (
+                <div className="flex justify-start mt-2">
+                  <div className="flex space-x-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="p-2 rounded-full hover:bg-blue-50 bg-transparent"
+                      onClick={() => handleFeedback(message.id, "like")}
+                    >
+                      <ThumbsUp className="h-4 w-4 text-blue-600" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="p-2 rounded-full hover:bg-gray-50 bg-transparent"
+                      onClick={() => handleFeedback(message.id, "dislike")}
+                    >
+                      <ThumbsDown className="h-4 w-4 text-gray-400" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         ))}
 
@@ -235,5 +274,5 @@ export function AiChatPanel() {
         </div>
       </div>
     </div>
-  )
+  );
 }
