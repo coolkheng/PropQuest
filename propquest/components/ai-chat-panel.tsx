@@ -1,12 +1,80 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
-import { MessageSquare, ThumbsUp, ThumbsDown } from "lucide-react"
+import { MessageSquare, ThumbsUp, ThumbsDown, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
+interface ChatMessage {
+  id: string
+  type: "user" | "ai"
+  content: string
+  timestamp: Date
+}
+
 export function AiChatPanel() {
   const [aiRequest, setAiRequest] = useState("")
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: "1",
+      type: "user",
+      content:
+        "Find me cosy apartments in Petaling Jaya for a long term, in a quiet safe area, the price should be RM40-70 per day, ability to check-in any time, non-smoking, I expect modern Instagram worthy apartments",
+      timestamp: new Date(),
+    },
+    {
+      id: "2",
+      type: "ai",
+      content: "Gotcha! You can find 46 results on the left.",
+      timestamp: new Date(),
+    },
+    {
+      id: "3",
+      type: "ai",
+      content: "But based on your request, the best fit for you would be Victor Hugo - Cosy charming studio heart 16e.",
+      timestamp: new Date(),
+    },
+  ])
+
+  const handleSendMessage = () => {
+    if (aiRequest.trim() === "") return
+
+    // Add user message
+    const newUserMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: "user",
+      content: aiRequest.trim(),
+      timestamp: new Date(),
+    }
+
+    setMessages((prev) => [...prev, newUserMessage])
+    setAiRequest("")
+
+    // Simulate AI response after a short delay
+    setTimeout(() => {
+      const aiResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: "ai",
+        content: "I'm processing your request. Let me find the best properties that match your criteria...",
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, aiResponse])
+    }, 1000)
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
+
+  const handleFeedback = (messageId: string, type: "like" | "dislike") => {
+    console.log(`Feedback for message ${messageId}: ${type}`)
+    // Here you would typically send feedback to your backend
+  }
 
   return (
     <div className="w-full h-full bg-white flex flex-col">
@@ -23,54 +91,51 @@ export function AiChatPanel() {
 
       {/* Chat Messages */}
       <div className="flex-1 px-6 pb-6 space-y-4 overflow-y-auto">
-        {/* User Message - Right Side, Blue */}
-        <div className="flex justify-end">
-          <div className="bg-blue-600 text-white p-4 rounded-2xl rounded-br-md max-w-sm">
-            <p className="text-sm leading-relaxed">
-              Hi, I’m looking to buy a residential property in Petaling Jaya, Kuala Lumpur.
-                  My requirements are:
-                  Type: Condominium or serviced apartment
-                  Budget: Maximum RM 800,000
-                  Size: At least 900 sq ft
-                  Bedrooms: Minimum 3 bedrooms
-                  Parking: At least 2 parking lots
-                  Facilities: Must have a gym and swimming pool
-                  Accessibility: Preferably near an LRT or MRT station (within 1 km)
-                  Tenure: Freehold preferred, but open to leasehold if location is strategic
-                  Move-in condition: Ready-to-move or minimal renovation needed
-            </p>
-          </div>
-        </div>
+        {messages.map((message, index) => (
+          <div key={message.id}>
+            {message.type === "user" ? (
+              /* User Message - Right Side, Blue */
+              <div className="flex justify-end">
+                <div className="bg-blue-600 text-white p-4 rounded-2xl rounded-br-md max-w-sm">
+                  <p className="text-sm leading-relaxed">{message.content}</p>
+                </div>
+              </div>
+            ) : (
+              /* AI Response - Left Side, Grey */
+              <div className="flex justify-start">
+                <div className="space-y-3 max-w-sm">
+                  <div className="bg-gray-100 p-4 rounded-2xl rounded-bl-md">
+                    <p className="text-sm text-gray-700">{message.content}</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
-        {/* AI Response - Left Side, Grey */}
-        <div className="flex justify-start">
-          <div className="space-y-3 max-w-sm">
-            <div className="bg-gray-100 p-4 rounded-2xl rounded-bl-md">
-              <p className="text-sm text-gray-700">
-                Gotcha! You can find <span className="font-semibold">46 results</span> on the left.
-              </p>
-            </div>
-
-            <div className="bg-gray-100 p-4 rounded-2xl rounded-bl-md">
-              <p className="text-sm text-gray-700">
-                But based on your request, the best fit for you would be{" "}
-                <span className="text-blue-600 font-medium">BotaniQa Residence</span>
-              </p>
-            </div>
+            {/* Feedback Buttons - Only show for AI messages and only for the last AI message */}
+            {message.type === "ai" && index === messages.length - 1 && (
+              <div className="flex justify-start mt-2">
+                <div className="flex space-x-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="p-2 rounded-full hover:bg-blue-50 bg-transparent"
+                    onClick={() => handleFeedback(message.id, "like")}
+                  >
+                    <ThumbsUp className="h-4 w-4 text-blue-600" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="p-2 rounded-full hover:bg-gray-50 bg-transparent"
+                    onClick={() => handleFeedback(message.id, "dislike")}
+                  >
+                    <ThumbsDown className="h-4 w-4 text-gray-400" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-
-        {/* Feedback Buttons - Left Aligned with AI Response */}
-        <div className="flex justify-start">
-          <div className="flex space-x-3">
-            <Button size="sm" variant="outline" className="p-2 rounded-full">
-              <ThumbsUp className="h-4 w-4 text-blue-600" />
-            </Button>
-            <Button size="sm" variant="outline" className="p-2 rounded-full">
-              <ThumbsDown className="h-4 w-4 text-gray-400" />
-            </Button>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Input Section */}
@@ -81,9 +146,17 @@ export function AiChatPanel() {
             placeholder="Enter your request here"
             value={aiRequest}
             onChange={(e) => setAiRequest(e.target.value)}
+            onKeyPress={handleKeyPress}
             className="flex-1 border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
           />
-          <Button className="bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-6">Send</Button>
+          <Button
+            onClick={handleSendMessage}
+            disabled={aiRequest.trim() === ""}
+            className="bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-6 flex items-center space-x-2"
+          >
+            <Send className="h-4 w-4" />
+            <span>Send</span>
+          </Button>
         </div>
       </div>
     </div>
