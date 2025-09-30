@@ -99,6 +99,7 @@ export function AiChatPanel() {
       );
 
       console.log(aiGeneratedFilters.data.reply);
+      
       const response = await axios.post(
         "http://localhost:5000/api/properties/search",
         {

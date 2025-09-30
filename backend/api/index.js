@@ -30,31 +30,6 @@ async function connectToDatabase() {
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const propertySchema = {
-  type: "object",
-  properties: {
-    url: { type: "string" },
-    title: { type: "string" },
-    address: { type: "string" },
-    price: { type: "string" },
-    psf: { type: "string" },
-    sqft: { type: "string" },
-    beds: { type: "string" },
-    baths: { type: "string" },
-    house_type: { type: "string" },
-    lease_type: { type: "string" },
-    furnishing: { type: "string" },
-    date_listed: { type: "string" },
-    facilities: {
-      type: "array",
-      items: { type: "string" },
-    },
-    images: {
-      type: "array",
-      items: { type: "string" },
-    },
-  },
-};
 
 // Routes
 app.get("/api/properties", async (req, res) => {
@@ -160,160 +135,92 @@ app.post("/api/chat", async (req, res) => {
 app.post("/api/properties/search", async (req, res) => {
   let { filters } = req.body;
 
-  if (typeof filters === "string") {
-    try {
-      filters = JSON.parse(filters);
-    } catch (e) {
-      return res.status(400).json({ error: "Filters JSON string invalid" });
-    }
-  }
-  if (!filters || typeof filters !== "object" || Array.isArray(filters)) {
-    return res.status(400).json({ error: "Filters must be an object" });
-  }
-
-  // Clean null/empty
-  Object.keys(filters).forEach((k) => {
-    const v = filters[k];
-    if (v === null || v === undefined) delete filters[k];
-    else if (Array.isArray(v) && v.length === 0) delete filters[k];
-  });
-
   try {
     const db = await connectToDatabase();
 
-    // Base (string / exact / regex) criteria first
-    const baseMatch = {};
+    const pipeline = [];
+
+    // Stage 1: Basic filters
+    const matchStage = {};
     if (filters.location)
-      baseMatch.address = { $regex: filters.location, $options: "i" };
-    if (filters.house_type) baseMatch.house_type = filters.house_type;
-    if (filters.lease_type) baseMatch.lease_type = filters.lease_type;
-    if (filters.furnishing) baseMatch.furnishing = filters.furnishing;
-    if (filters.facilities) baseMatch.facilities = { $all: filters.facilities };
+      matchStage.address = { $regex: filters.location, $options: "i" };
+    if (filters.house_type) matchStage.house_type = filters.house_type;
+    if (filters.lease_type) matchStage.lease_type = filters.lease_type;
+    if (filters.furnishing) matchStage.furnishing = filters.furnishing;
+    if (filters.facilities)
+      matchStage.facilities = { $all: filters.facilities };
 
-    // Determine if we need numeric transforms
-    const needsNumeric = [
-      "price_min",
-      "price_max",
-      "beds_min",
-      "baths_min",
-      "sqft_min",
-      "sqft_max",
-    ].some((k) => k in filters);
+    pipeline.push({ $match: matchStage });
 
-    let results;
-
-    if (!needsNumeric) {
-      // Simple find
-      results = await db.collection("properties").find(baseMatch).toArray();
-    } else {
-      // Aggregation pipeline with numeric conversion using $regexReplace + $convert
-      const addFieldsStage = {
-        $addFields: {
-          price_num: {
-            $convert: {
+    // Stage 2: Convert numeric fields
+    pipeline.push({
+      $addFields: {
+        price_num: {
+          $toInt: {
+            $replaceAll: {
               input: {
-                $regexReplace: {
-                  input: "$price",
-                  regex: "[^0-9.]",
-                  replacement: "",
-                },
+                $replaceAll: { input: "$price", find: "RM ", replacement: "" },
               },
-              to: "double",
-              onError: null,
-              onNull: null,
-            },
-          },
-          beds_num: {
-            $convert: {
-              input: {
-                $regexReplace: {
-                  input: "$beds",
-                  regex: "[^0-9]",
-                  replacement: "",
-                },
-              },
-              to: "int",
-              onError: null,
-              onNull: null,
-            },
-          },
-          baths_num: {
-            $convert: {
-              input: {
-                $regexReplace: {
-                  input: "$baths",
-                  regex: "[^0-9]",
-                  replacement: "",
-                },
-              },
-              to: "int",
-              onError: null,
-              onNull: null,
-            },
-          },
-          sqft_num: {
-            $convert: {
-              input: {
-                $regexReplace: {
-                  input: "$sqft",
-                  regex: "[^0-9.]",
-                  replacement: "",
-                },
-              },
-              to: "double",
-              onError: null,
-              onNull: null,
+              find: ",",
+              replacement: "",
             },
           },
         },
-      };
+        beds_num: { $toInt: "$beds" },
+        baths_num: { $toInt: "$baths" },
+        sqft_num: { $toInt: "$sqft" },
+      },
+    });
 
-      const numericMatch = {};
-      if (filters.price_min != null || filters.price_max != null) {
-        numericMatch.price_num = {};
-        if (filters.price_min != null)
-          numericMatch.price_num.$gte = filters.price_min;
-        if (filters.price_max != null)
-          numericMatch.price_num.$lte = filters.price_max;
-      }
-      if (filters.beds_min != null)
-        numericMatch.beds_num = { $gte: filters.beds_min };
-      if (filters.baths_min != null)
-        numericMatch.baths_num = { $gte: filters.baths_min };
-      if (filters.sqft_min != null || filters.sqft_max != null) {
-        numericMatch.sqft_num = {};
-        if (filters.sqft_min != null)
-          numericMatch.sqft_num.$gte = filters.sqft_min;
-        if (filters.sqft_max != null)
-          numericMatch.sqft_num.$lte = filters.sqft_max;
-      }
-
-      // Remove empty objects
-      Object.keys(numericMatch).forEach((k) => {
-        if (numericMatch[k] && Object.keys(numericMatch[k]).length === 0)
-          delete numericMatch[k];
-      });
-
-      const pipeline = [{ $match: baseMatch }, addFieldsStage];
-      if (Object.keys(numericMatch).length)
-        pipeline.push({ $match: numericMatch });
-
-      // Debug (optional - comment out in production)
-      console.log("/api/properties/search filters=", filters);
-      console.log("Pipeline=", JSON.stringify(pipeline, null, 2));
-
-      results = await db.collection("properties").aggregate(pipeline).toArray();
+    // Stage 3: Numeric filters
+    const numericMatch = {};
+    if (filters.price_min != null || filters.price_max != null) {
+      numericMatch.price_num = {};
+      if (filters.price_min != null)
+        numericMatch.price_num.$gte = filters.price_min;
+      if (filters.price_max != null)
+        numericMatch.price_num.$lte = filters.price_max;
+    }
+    if (filters.beds_min != null)
+      numericMatch.beds_num = { $gte: filters.beds_min };
+    if (filters.baths_min != null)
+      numericMatch.baths_num = { $gte: filters.baths_min };
+    if (filters.sqft_min != null || filters.sqft_max != null) {
+      numericMatch.sqft_num = {};
+      if (filters.sqft_min != null)
+        numericMatch.sqft_num.$gte = filters.sqft_min;
+      if (filters.sqft_max != null)
+        numericMatch.sqft_num.$lte = filters.sqft_max;
     }
 
+    if (Object.keys(numericMatch).length > 0) {
+      pipeline.push({ $match: numericMatch });
+    }
+
+    // Stage 4: Clean up temporary fields
+    pipeline.push({
+      $project: {
+        price_num: 0,
+        beds_num: 0,
+        baths_num: 0,
+        sqft_num: 0,
+      },
+    });
+
+    const results = await db
+      .collection("properties")
+      .aggregate(pipeline)
+      .toArray();
     res.json(results);
   } catch (error) {
-    console.error("Error searching properties:", error);
-    res.status(500).json({ error: "Failed to search properties" });
+    console.error("Error:", error);
+    res.status(500).json({ error: "Search failed" });
   }
 });
 
 // Start the server
 app.listen(port, async () => {
   const db = await connectToDatabase();
+
   console.log(`Backend server is running at http://localhost:${port}`);
 });
