@@ -92,7 +92,7 @@ export function AiChatPanel() {
 
     try {
       // Send user message to backend
-      const response = await axios.post("/api/chat", {
+      const response = await axios.post("http://localhost:5000/api/chat", {
         message: userMessageContent,
       });
 

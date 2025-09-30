@@ -1,7 +1,7 @@
 const express = require("express");
 const { MongoClient, ObjectId } = require("mongodb");
 const dotenv = require("dotenv");
-const { Configuration, OpenAIApi } = require("openai");
+const { OpenAI } = require("openai");
 
 // Load environment variables
 dotenv.config();
@@ -28,11 +28,7 @@ async function connectToDatabase() {
   }
 }
 
-// OpenAI Configuration
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY, // Ensure this is set in your .env file
-});
-const openai = new OpenAIApi(configuration);
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Routes
 app.get("/api/properties", async (req, res) => {
@@ -91,14 +87,14 @@ app.post("/api/chat", async (req, res) => {
   }
 
   try {
-    const response = await openai.createCompletion({
-      model: "text-davinci-003", // Use the desired OpenAI model
-      prompt: message,
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // Correct model name
+      messages: [{ role: "user", content: message }],
       max_tokens: 150,
       temperature: 0.7,
     });
 
-    res.json({ reply: response.data.choices[0].text.trim() });
+    res.json({ reply: response.choices[0].message.content.trim() });
   } catch (error) {
     console.error("Error with OpenAI API:", error);
     res.status(500).json({ error: "Failed to generate response" });
