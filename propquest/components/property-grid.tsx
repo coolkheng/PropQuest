@@ -90,9 +90,11 @@ export function PropertyGrid({
                 </div>
                 <div>
                   <span className="text-sm font-semibold">
-                    {Number(property.sqft).toLocaleString()}
+                    {Number(
+                      property.sqft.replace(/[^\d.]/g, "")
+                    ).toLocaleString()}
                   </span>
-                  <span className="text-xs text-gray-500 ml-1">sqft</span>
+                  <span className="text-xs text-gray-500 ml-2">sqft</span>
                 </div>
               </div>
 

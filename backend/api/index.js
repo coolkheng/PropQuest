@@ -30,7 +30,6 @@ async function connectToDatabase() {
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-
 // Routes
 app.get("/api/properties", async (req, res) => {
   try {
@@ -138,8 +137,6 @@ app.post("/api/properties/search", async (req, res) => {
   try {
     const db = await connectToDatabase();
 
-    const pipeline = [];
-
     // Stage 1: Basic filters
     const matchStage = {};
     if (filters.location)
@@ -150,7 +147,8 @@ app.post("/api/properties/search", async (req, res) => {
     if (filters.facilities)
       matchStage.facilities = { $all: filters.facilities };
 
-    pipeline.push({ $match: matchStage });
+    
+    const pipeline = [{ $match: matchStage }];
 
     // Stage 2: Convert numeric fields
     pipeline.push({
@@ -166,9 +164,30 @@ app.post("/api/properties/search", async (req, res) => {
             },
           },
         },
-        beds_num: { $toInt: "$beds" },
-        baths_num: { $toInt: "$baths" },
-        sqft_num: { $toInt: "$sqft" },
+        beds_num: {
+          $cond: {
+            if: { $eq: ["$beds", "N/A"] },
+            then: 0,
+            else: { $toInt: "$beds" },
+          },
+        },
+        baths_num: {
+          $cond: {
+            if: { $eq: ["$baths", "N/A"] },
+            then: 0,
+            else: { $toInt: "$baths" },
+          },
+        },
+        sqft_num: {
+          $convert: {
+            input: {
+              $replaceAll: { input: "$sqft", find: ",", replacement: "" },
+            },
+            to: "double",
+            onError: 0,
+            onNull: 0,
+          },
+        },
       },
     });
 
@@ -206,7 +225,7 @@ app.post("/api/properties/search", async (req, res) => {
         sqft_num: 0,
       },
     });
-
+    console.log("Aggregation Pipeline:", JSON.stringify(pipeline, null, 2));
     const results = await db
       .collection("properties")
       .aggregate(pipeline)
