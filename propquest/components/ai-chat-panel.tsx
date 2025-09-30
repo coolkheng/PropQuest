@@ -77,7 +77,6 @@ export function AiChatPanel() {
   const handleSendMessage = async () => {
     if (aiRequest.trim() === "") return;
 
-    // Add user message
     const newUserMessage: ChatMessage = {
       id: Date.now().toString(),
       type: "user",
@@ -91,16 +90,29 @@ export function AiChatPanel() {
     setIsAiTyping(true);
 
     try {
-      // Send user message to backend
-      const response = await axios.post("http://localhost:5000/api/chat", {
-        message: userMessageContent,
-      });
+      // Generate JSON request dynamically based on user input
+      const aiGeneratedFilters = await axios.post(
+        "http://localhost:5000/api/chat",
+        {
+          message: userMessageContent,
+        }
+      );
 
-      // Add AI response
+      console.log(aiGeneratedFilters.data.reply);
+      const response = await axios.post(
+        "http://localhost:5000/api/properties/search",
+        {
+          filters: aiGeneratedFilters.data.reply,
+        }
+      );
+
+      const properties = response.data;
+
+      // Add AI response with property results
       const aiResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: "ai",
-        content: response.data.reply,
+        content: `I found ${properties.length} properties matching your criteria. Check them out on the map!`,
         timestamp: new Date(),
       };
 
