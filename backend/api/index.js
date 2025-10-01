@@ -89,7 +89,7 @@ app.post("/api/chat", async (req, res) => {
         {
           role: "system",
           content:
-            "Extract property search parameters as concise JSON. Use only fields that the user specified. Omit fields not mentioned. Return JSON only.",
+            "Extract property search parameters as concise JSON. Use only fields that the user specified. Omit fields not mentioned. Return JSON only and Capitalize the first Letter of each data name but not field name.No shortforms.",
         },
         { role: "user", content: message },
       ],
@@ -139,6 +139,8 @@ app.post("/api/properties/search", async (req, res) => {
     const db = await connectToDatabase();
 
     // Stage 1: Basic filters
+    // Still need to fix the condo shortform issue
+    // Make it match Condo, Condos, Condominium
     const matchStage = {};
     if (filters.location)
       matchStage.address = { $regex: filters.location, $options: "i" };
