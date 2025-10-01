@@ -133,7 +133,8 @@ app.post("/api/chat", async (req, res) => {
 
 app.post("/api/properties/search", async (req, res) => {
   let { filters } = req.body;
-
+  filters = JSON.parse(filters);
+  console.log("Received Filters:", filters);
   try {
     const db = await connectToDatabase();
 
