@@ -7,7 +7,7 @@ import { MapView } from "@/components/map-view";
 import { AiChatPanel } from "@/components/ai-chat-panel";
 import axios from "axios";
 
-interface Property {
+export interface Property {
   _id: string;
   url: string;
   title: string;
@@ -26,7 +26,7 @@ interface Property {
 }
 
 export default function HomePage() {
-  const [properties, setProperties] = useState<Property[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]); // Lifted state
   const [searchQuery, setSearchQuery] = useState("");
   const [hoveredProperty, setHoveredProperty] = useState<string | null>(null);
 
@@ -74,7 +74,7 @@ export default function HomePage() {
         </div>
 
         <div className="w-[40%] h-full">
-          <AiChatPanel />
+          <AiChatPanel properties={properties} setProperties={setProperties} />
         </div>
       </div>
     </div>

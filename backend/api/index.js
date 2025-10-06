@@ -89,7 +89,7 @@ app.post("/api/chat", async (req, res) => {
         {
           role: "system",
           content:
-            "Extract property search parameters as concise JSON. Use only fields that the user specified. Omit fields not mentioned. Return JSON only and Capitalize the first Letter of each data name but not field name.No shortforms.",
+            "Extract property search parameters as concise JSON. Use only fields that the user specified. Omit fields not mentioned. Return JSON only and strictly capitalize the first Letter of data name but not the field name.No shortforms.",
         },
         { role: "user", content: message },
       ],

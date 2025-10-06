@@ -2,6 +2,7 @@
 
 import type React from "react";
 import axios from "axios";
+import { Property } from "../app/page"; // Import the Property interface
 
 import { useState, useRef, useEffect } from "react";
 import { MessageSquare, ThumbsUp, ThumbsDown, Send } from "lucide-react";
@@ -16,7 +17,12 @@ interface ChatMessage {
   isTyping?: boolean;
 }
 
-export function AiChatPanel() {
+interface AiChatPanelProps {
+  properties: Property[];
+  setProperties: React.Dispatch<React.SetStateAction<Property[]>>;
+}
+
+export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
   const [aiRequest, setAiRequest] = useState("");
   const [isAiTyping, setIsAiTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -99,7 +105,7 @@ export function AiChatPanel() {
       );
 
       console.log(aiGeneratedFilters.data.reply);
-      
+
       const response = await axios.post(
         "http://localhost:5000/api/properties/search",
         {
@@ -108,6 +114,7 @@ export function AiChatPanel() {
       );
 
       const properties = response.data;
+      setProperties(properties); // Update the properties state with the API response
 
       // Add AI response with property results
       const aiResponse: ChatMessage = {
