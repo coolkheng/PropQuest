@@ -3,7 +3,7 @@ import { loadModules } from "esri-loader";
 
 interface MapBackgroundProps {
   hoveredProperty: string | null;
-  Property: Property [];
+  Property: Property[];
 }
 
 interface Property {
@@ -24,8 +24,10 @@ interface Property {
   facilities: string[];
 }
 
-
-export function MapBackground({ hoveredProperty , Property }: MapBackgroundProps) {
+export function MapBackground({
+  hoveredProperty,
+  Property,
+}: MapBackgroundProps) {
   const mapRef = useRef(null);
 
   useEffect(() => {
@@ -38,30 +40,29 @@ export function MapBackground({ hoveredProperty , Property }: MapBackgroundProps
         "esri/Graphic",
       ],
       { css: true }
-    )
-      .then(([esriConfig, Map, MapView, locator, Graphic]) => {
-        // Use your API key from .env
-        esriConfig.apiKey = process.env.MAP_ARCGS_URI;
+    ).then(([esriConfig, Map, MapView, locator, Graphic]) => {
+      // Use your API key from .env
+      esriConfig.apiKey = process.env.MAP_ARCGS_URI;
 
-        const map = new Map({ basemap: "arcgis-streets" });
+      const map = new Map({ basemap: "arcgis-streets" });
 
-        const view = new MapView({
-          container: mapRef.current,
-          map: map,
-          center: [101.6869, 3.139], // default center (Kuala Lumpur)
-          zoom: 12,
-        });
+      const view = new MapView({
+        container: mapRef.current,
+        map: map,
+        center: [101.6869, 3.139], // default center (Kuala Lumpur)
+        zoom: 12,
+      });
 
-        // Address to geocode
-        const address = {
-          address: "1 Utama Shopping Centre, Petaling Jaya, Malaysia",
-        };
+      // Address to geocode
+      const address = {
+        address: "1 Utama Shopping Centre, Petaling Jaya, Malaysia",
+      };
 
-        const geocodeUrl =
-          "http://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer";
+      const geocodeUrl =
+        "http://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer";
 
-        // Use the geocoder
-        // Loop through properties
+      // Use the geocoder
+      // Loop through properties
       Property.forEach((property) => {
         locator
           .addressToLocations(geocodeUrl, {
@@ -79,32 +80,29 @@ export function MapBackground({ hoveredProperty , Property }: MapBackgroundProps
               };
 
               const markerSymbol = {
-                type: "simple-marker",
-                color:  "blue",
-                size: "12px",
-                outline: {
-                  color: [255, 255, 255],
-                  width: 1,
-                },
+                type: "picture-marker", // Use an image as the marker
+                url: "/location.png", // Correct path for public assets in Next.js
+                width: "40px", // Adjust the size of the marker
+                height: "40px",
               };
 
-              const textSymbol = {
-                type: "text",
-                color: "black",
-                text: property.title,
-                font: {
-                  size: 12,
-                  family: "Arial",
-                  weight: "bold",
-                },
-                yoffset: -20,
-                haloColor: "white",
-                haloSize: "3px",
-              };
+              // const textSymbol = {
+              //   type: "text",
+              //   color: "black",
+              //   text: property.title,
+              //   font: {
+              //     size: 12,
+              //     family: "Arial",
+              //     weight: "bold",
+              //   },
+              //   yoffset: -20,
+              //   haloColor: "white",
+              //   haloSize: "3px",
+              // };
 
               view.graphics.addMany([
                 new Graphic({ geometry: point, symbol: markerSymbol }),
-                new Graphic({ geometry: point, symbol: textSymbol }),
+                // new Graphic({ geometry: point, symbol: textSymbol }),
               ]);
             }
           })
