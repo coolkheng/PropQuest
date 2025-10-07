@@ -148,9 +148,9 @@ export default function RegisterPage() {
         {/* Logo and Title */}
         <div className="text-center mb-8">
           <Link href="/">
-            <GradientText className="text-4xl font-bold mb-2 inline-block cursor-pointer bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
+            <span className="text-4xl font-bold mb-2 inline-block cursor-pointer bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
               PropQuest
-            </GradientText>
+            </span>
           </Link>
           <p className="text-gray-600 mt-2">
             Create your account to get started
@@ -364,13 +364,13 @@ export default function RegisterPage() {
             </div>
 
             {/* Submit Button */}
-            <GradientButton
+            <Button
               type="submit"
               disabled={isLoading}
               className="w-full h-12 text-base bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400"
             >
               {isLoading ? "Creating account..." : "Create Account"}
-            </GradientButton>
+            </Button>
           </form>
 
           {/* Divider */}
