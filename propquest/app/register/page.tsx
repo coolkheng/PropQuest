@@ -147,11 +147,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <Link href="/">
-            <span className="text-4xl font-bold mb-2 inline-block cursor-pointer bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
-              PropQuest
-            </span>
-          </Link>
+          <h1 className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">PropQuest</h1>
           <p className="text-gray-600 mt-2">
             Create your account to get started
           </p>
