@@ -81,7 +81,7 @@ export function MapBackground({
 
               const markerSymbol = {
                 type: "picture-marker", // Use an image as the marker
-                url: "/location.png", // Correct path for public assets in Next.js
+                url: "/location-pin.png", // Correct path for public assets in Next.js
                 width: "40px", // Adjust the size of the marker
                 height: "40px",
               };
