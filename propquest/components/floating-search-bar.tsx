@@ -24,7 +24,7 @@ export function FloatingSearchBar({
           placeholder={placeholder}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="border-0 bg-transparent pl-6 pr-14 py-3 text-gray-700 placeholder:text-gray-500 focus:ring-0 focus:outline-none rounded-full"
+          className="border-0 bg-transparent pl-6 pr-14 py-5 text-gray-700 placeholder:text-gray-500 focus:ring-0 focus:outline-none rounded-full"
         />
         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
           <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 rounded-full p-2">

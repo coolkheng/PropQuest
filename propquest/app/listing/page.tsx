@@ -38,7 +38,9 @@ export default function ListingPage() {
   useEffect(() => {
     const fetchProperties = async () => {
       try {
-        const res = await axios.get<Property[]>("http://localhost:5000/api/properties");
+        const res = await axios.get<Property[]>(
+          "http://localhost:5000/api/properties"
+        );
         const data: Property[] = res.data;
         setProperties(data);
       } catch (error) {
@@ -72,7 +74,7 @@ export default function ListingPage() {
           <FloatingSearchBar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            className="bg-white/95 backdrop-blur-sm rounded-full shadow-lg border border-white/20"
+            className="bg-white/95 backdrop-blur-sm rounded-full shadow-lg border border-white/20 text-lg "
           />
         </div>
       </div>

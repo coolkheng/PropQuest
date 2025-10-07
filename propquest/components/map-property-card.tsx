@@ -33,7 +33,7 @@ export function MapPropertyCard({ property, isHovered, onMouseEnter, onMouseLeav
   return (
     <Link href={`/property/${property._id}`} onClick={onClick}>
       <Card
-        className="w-[200px] h-[240px] bg-white shadow-lg transition-all duration-200 cursor-pointer flex-shrink-0 gap-2 py-0"
+        className="w-[250px] h-[240px] bg-white shadow-lg transition-all duration-200 cursor-pointer flex-shrink-0 gap-3 py-0"
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         style={{
