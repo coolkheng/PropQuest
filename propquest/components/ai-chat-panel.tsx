@@ -80,6 +80,18 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
     ];
   };
 
+  const classifyUserIntent = async (message: string): Promise<string> => {
+    try {
+      const response = await axios.post("http://localhost:5000/api/classify", {
+        message,
+      });
+      return response.data.intent;
+    } catch (error) {
+      console.error("Error classifying user intent:", error);
+      return "unknown";
+    }
+  };
+
   const handleSendMessage = async () => {
     if (aiRequest.trim() === "") return;
 
@@ -96,35 +108,46 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
     setIsAiTyping(true);
 
     try {
-      // Generate JSON request dynamically based on user input
-      const aiGeneratedFilters = await axios.post(
-        "http://localhost:5000/api/chat",
-        {
-          message: userMessageContent,
-        }
-      );
+      const intent = await classifyUserIntent(userMessageContent);
 
-      console.log(aiGeneratedFilters.data.reply);
+      if (intent === "search") {
+        const aiGeneratedFilters = await axios.post(
+          "http://localhost:5000/api/chat",
+          {
+            message: userMessageContent,
+          }
+        );
 
-      const response = await axios.post(
-        "http://localhost:5000/api/properties/search",
-        {
-          filters: aiGeneratedFilters.data.reply,
-        }
-      );
+        console.log(aiGeneratedFilters.data.reply);
 
-      const properties = response.data;
-      setProperties(properties); // Update the properties state with the API response
+        const response = await axios.post(
+          "http://localhost:5000/api/properties/search",
+          {
+            filters: aiGeneratedFilters.data.reply,
+          }
+        );
 
-      // Add AI response with property results
-      const aiResponse: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        type: "ai",
-        content: `I found ${properties.length} properties matching your criteria. Check them out on the map!`,
-        timestamp: new Date(),
-      };
+        const properties = response.data;
+        setProperties(properties); // Update the properties state with the API response
 
-      setMessages((prev) => [...prev, aiResponse]);
+        const aiResponse: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          type: "ai",
+          content: `I found ${properties.length} properties matching your criteria. Check them out on the map!`,
+          timestamp: new Date(),
+        };
+
+        setMessages((prev) => [...prev, aiResponse]);
+      } else {
+        const aiResponse: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          type: "ai",
+          content: generateAiResponse(userMessageContent),
+          timestamp: new Date(),
+        };
+
+        setMessages((prev) => [...prev, aiResponse]);
+      }
     } catch (error) {
       console.error("Error generating AI response:", error);
       setMessages((prev) => [
