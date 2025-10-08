@@ -113,6 +113,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
     try {
       const intent = await classifyUserIntent(userMessageContent);
       console.log("Classified intent:", intent);
+      
       if (intent === "search") {
         const aiGeneratedFilters = await axios.post(
           "http://localhost:5000/api/chat/search",
