@@ -82,7 +82,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
 
   const classifyUserIntent = async (message: string): Promise<string> => {
     try {
-      const response = await axios.post("http://localhost:5000/api/classify", {
+      const response = await axios.post("http://localhost:5000/api/chat/classify", {
         message,
       });
       return response.data.intent;
@@ -112,7 +112,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
 
       if (intent === "search") {
         const aiGeneratedFilters = await axios.post(
-          "http://localhost:5000/api/chat",
+          "http://localhost:5000/api/chat/search",
           {
             message: userMessageContent,
           }

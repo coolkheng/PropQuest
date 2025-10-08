@@ -79,7 +79,7 @@ app.get("/api/properties/:id", async (req, res) => {
 });
 
 // Chatbot Route
-app.post("/api/chat", async (req, res) => {
+app.post("/api/chat/search", async (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ error: "Message is required" });
   try {
@@ -150,7 +150,6 @@ app.post("/api/properties/search", async (req, res) => {
     if (filters.facilities)
       matchStage.facilities = { $all: filters.facilities };
 
-    
     const pipeline = [{ $match: matchStage }];
 
     // Stage 2: Convert numeric fields
@@ -237,6 +236,33 @@ app.post("/api/properties/search", async (req, res) => {
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: "Search failed" });
+  }
+});
+
+app.post("/api/chat/classify", async (req, res) => {
+  const { message } = req.body;
+  if (!message) return res.status(400).json({ error: "Message is required" });
+
+  try {
+    const openaiResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Classify user intent as: 'search', 'question', or 'unknown'. Return JSON only.",
+        },
+        { role: "user", content: message },
+      ],
+      max_tokens: 10,
+      temperature: 0,
+    });
+
+    const intent = JSON.parse(openaiResponse.choices[0].message.content);
+    res.json(intent);
+  } catch (error) {
+    console.error("Error with OpenAI API:", error?.response?.data || error);
+    res.status(500).json({ error: "Failed to classify intent" });
   }
 });
 
