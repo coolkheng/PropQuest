@@ -31,7 +31,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
       id: "2",
       type: "ai",
       content:
-        "Hi! I'm your AI assistant. \n Here’s what I can help you with:\n🏠 1. Answer property-related questions  \n🎯 2. Recommend properties that fit your preferences  \n🔍 3. Find listings by extracting filters from your message  \n📈 4. Show market price trends and insights  ",
+        "Hi! I'm your AI assistant. Here’s what I can help you with:\n🏠 1. Answer property-related questions  \n🎯 2. Recommend properties that fit your preferences  \n🔍 3. Find property based on your criteria  \n📈 4. Show market price trends and insights  ",
       timestamp: new Date(),
     },
   ]);
