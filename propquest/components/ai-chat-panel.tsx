@@ -82,9 +82,12 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
 
   const classifyUserIntent = async (message: string): Promise<string> => {
     try {
-      const response = await axios.post("http://localhost:5000/api/chat/classify", {
-        message,
-      });
+      const response = await axios.post(
+        "http://localhost:5000/api/chat/classify",
+        {
+          message,
+        }
+      );
       return response.data.intent;
     } catch (error) {
       console.error("Error classifying user intent:", error);
@@ -109,7 +112,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
 
     try {
       const intent = await classifyUserIntent(userMessageContent);
-
+      console.log("Classified intent:", intent);
       if (intent === "search") {
         const aiGeneratedFilters = await axios.post(
           "http://localhost:5000/api/chat/search",
