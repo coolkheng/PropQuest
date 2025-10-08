@@ -1,6 +1,6 @@
 "use client";
 
-import type React from "react";
+import React from "react";
 import axios from "axios";
 import { Property } from "../app/page"; // Import the Property interface
 
@@ -31,7 +31,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
       id: "2",
       type: "ai",
       content:
-        "Hi! I'm your AI assistant. How can I help you find the perfect property today? You can tell me about your budget, preferred location, amenities, or any other details that matter to you. ",
+        "Hi! I'm your AI assistant. \n Here’s what I can help you with:\n🏠 1. Answer property-related questions  \n🎯 2. Recommend properties that fit your preferences  \n🔍 3. Find listings by extracting filters from your message  \n📈 4. Show market price trends and insights  ",
       timestamp: new Date(),
     },
   ]);
@@ -198,8 +198,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
           AI Property Search
         </h2>
         <p className="text-sm text-gray-500 leading-relaxed">
-          I can analyse photos, data, surroundings for best fit. So feel free to
-          enter whatever details you like
+          Feel free to enter whatever details you like
         </p>
       </div>
 
@@ -225,7 +224,14 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
               <div className="flex justify-start">
                 <div className="space-y-3 max-w-sm">
                   <div className="bg-gray-100 p-4 rounded-2xl rounded-bl-md">
-                    <p className="text-sm text-gray-700">{message.content}</p>
+                    <p className="text-sm text-gray-700">
+                      {message.content.split("\n").map((line, index) => (
+                        <React.Fragment key={index}>
+                          {line}
+                          <br />
+                        </React.Fragment>
+                      ))}
+                    </p>
                     <p className="text-xs text-gray-500 mt-2">
                       {message.timestamp.toLocaleTimeString([], {
                         hour: "2-digit",
