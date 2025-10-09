@@ -224,14 +224,15 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
         <h2 className="text-xl font-bold text-gray-900 mb-3">
           AI Property Search
         </h2>
-        <p className="text-sm text-gray-500 leading-relaxed">
+        <p className="text-sm text-gray-500 leading-relaxed mb-4">
           Feel free to enter whatever details you like
         </p>
+
 
         <div className="flex justify-center">
           <AiPersonalizedToggle isActive={isPersonalizedActive} onToggle={handlePersonalizedToggle} />
         </div>
-        
+
       </div>
 
      
