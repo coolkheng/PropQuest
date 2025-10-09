@@ -266,6 +266,33 @@ app.post("/api/chat/classify", async (req, res) => {
   }
 });
 
+app.post("/api/chat/questions", async (req, res) => {
+  const { message } = req.body;
+  if (!message) return res.status(400).json({ error: "Message is required" });
+
+  try {
+    const openaiResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an AI property assistant. Answer user questions related to real estate in Malaysia. Provide concise and accurate responses.",
+        },
+        { role: "user", content: message },
+      ],
+      max_tokens: 200,
+      temperature: 0.7,
+    });
+
+    const reply = openaiResponse.choices[0].message.content;
+    res.json({ reply });
+  } catch (error) {
+    console.error("Error with OpenAI API:", error?.response?.data || error);
+    res.status(500).json({ error: "Failed to generate response" });
+  }
+});
+
 // Start the server
 app.listen(port, async () => {
   const db = await connectToDatabase();
