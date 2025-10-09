@@ -113,7 +113,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
     try {
       const intent = await classifyUserIntent(userMessageContent);
       console.log("Classified intent:", intent);
-      
+
       if (intent === "search") {
         const aiGeneratedFilters = await axios.post(
           "http://localhost:5000/api/chat/search",
@@ -138,6 +138,22 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
           id: (Date.now() + 1).toString(),
           type: "ai",
           content: `I found ${properties.length} properties matching your criteria. Check them out on the map!`,
+          timestamp: new Date(),
+        };
+
+        setMessages((prev) => [...prev, aiResponse]);
+      } else if (intent === "question") {
+        const backendResponse = await axios.post(
+          "http://localhost:5000/api/chat/questions",
+          {
+            message: userMessageContent,
+          }
+        );
+
+        const aiResponse: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          type: "ai",
+          content: backendResponse.data.reply,
           timestamp: new Date(),
         };
 
