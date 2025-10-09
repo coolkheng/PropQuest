@@ -8,8 +8,7 @@ import { useState, useRef, useEffect } from "react";
 import { MessageSquare, ThumbsUp, ThumbsDown, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AiPersonalizedToggle } from "./ai-personalized-toggle"
-
+import { AiPersonalizedToggle } from "./ai-personalized-toggle";
 
 interface ChatMessage {
   id: string;
@@ -48,7 +47,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
   }, [messages, isAiTyping]);
 
   const handlePersonalizedToggle = () => {
-    setIsPersonalizedActive(!isPersonalizedActive)
+    setIsPersonalizedActive(!isPersonalizedActive);
 
     // Add a message to indicate the feature is activated/deactivated
     setTimeout(() => {
@@ -59,10 +58,10 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
           ? "AI Personalized Properties has been deactivated. I'll now show you all available properties."
           : "AI Personalized Properties is now active! I'll prioritize recommendations based on your preferences and search history.",
         timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, toggleMessage])
-    }, 500)
-  }
+      };
+      setMessages((prev) => [...prev, toggleMessage]);
+    }, 500);
+  };
 
   const classifyUserIntent = async (message: string): Promise<string> => {
     try {
@@ -146,11 +145,52 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
         const aiResponse: ChatMessage = {
           id: (Date.now() + 1).toString(),
           type: "ai",
-          content: "Sorry, I couldn't process your request. Could you please rephrase with more specific words ?",
+          content:
+            "Sorry, I couldn't process your request. Could you please rephrase with more specific words ?",
           timestamp: new Date(),
         };
 
         setMessages((prev) => [...prev, aiResponse]);
+      }
+
+      // Handle AI Personalized Toggle
+      if (isPersonalizedActive) {
+        while (isPersonalizedActive) {
+          if (!isPersonalizedActive || aiRequest.trim() === "") {
+            break;
+          }
+
+          try {
+            const backendResponse = await axios.post(
+              "http://localhost:5000/api/chat/preferences",
+              {
+                preference: aiRequest.trim(),
+              }
+            );
+
+            const aiResponse: ChatMessage = {
+              id: (Date.now() + 1).toString(),
+              type: "ai",
+              content: backendResponse.data.reply,
+              timestamp: new Date(),
+            };
+
+            setMessages((prev) => [...prev, aiResponse]);
+            setAiRequest(""); // Clear the input after sending
+          } catch (error) {
+            console.error("Error posting preferences to backend:", error);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: (Date.now() + 2).toString(),
+                type: "ai",
+                content:
+                  "Sorry, I couldn't process your preferences. Please try again.",
+                timestamp: new Date(),
+              },
+            ]);
+          }
+        }
       }
     } catch (error) {
       console.error("Error generating AI response:", error);
@@ -228,14 +268,14 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
           Feel free to enter whatever details you like
         </p>
 
-
         <div className="flex justify-center">
-          <AiPersonalizedToggle isActive={isPersonalizedActive} onToggle={handlePersonalizedToggle} />
+          <AiPersonalizedToggle
+            isActive={isPersonalizedActive}
+            onToggle={handlePersonalizedToggle}
+          />
         </div>
-
       </div>
 
-     
       {/* Chat Messages */}
       <div className="flex-1 px-6 pb-6 space-y-4 overflow-y-auto">
         {messages.map((message, index) => (

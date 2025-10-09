@@ -293,6 +293,36 @@ app.post("/api/chat/questions", async (req, res) => {
   }
 });
 
+// Endpoint to handle user preferences
+app.post("/api/chat/preferences", async (req, res) => {
+  const { preference } = req.body;
+  if (!preference) {
+    return res.status(400).json({ error: "Preference is required" });
+  }
+
+  try {
+    const openaiResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an AI property assistant. Respond to user preferences with personalized property suggestions.",
+        },
+        { role: "user", content: preference },
+      ],
+      max_tokens: 200,
+      temperature: 0.7,
+    });
+
+    const reply = openaiResponse.choices[0].message.content;
+    res.json({ reply });
+  } catch (error) {
+    console.error("Error with OpenAI API:", error?.response?.data || error);
+    res.status(500).json({ error: "Failed to process preferences" });
+  }
+});
+
 // Start the server
 app.listen(port, async () => {
   const db = await connectToDatabase();
