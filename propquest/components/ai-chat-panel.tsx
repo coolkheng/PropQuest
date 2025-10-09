@@ -28,6 +28,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
   const [aiRequest, setAiRequest] = useState("");
   const [isAiTyping, setIsAiTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isPersonalizedActive, setIsPersonalizedActive] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "2",
@@ -46,41 +47,22 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
     scrollToBottom();
   }, [messages, isAiTyping]);
 
-  const generateAiResponse = (userMessage: string): string => {
-    // Simple response generation based on keywords
-    const lowerMessage = userMessage.toLowerCase();
+  const handlePersonalizedToggle = () => {
+    setIsPersonalizedActive(!isPersonalizedActive)
 
-    if (lowerMessage.includes("price") || lowerMessage.includes("budget")) {
-      return "I understand you're looking for properties within a specific budget. Let me filter the results based on your price range.";
-    }
-
-    if (lowerMessage.includes("location") || lowerMessage.includes("area")) {
-      return "Location is key! I'll focus on properties in your preferred areas with good accessibility and amenities.";
-    }
-
-    if (
-      lowerMessage.includes("amenities") ||
-      lowerMessage.includes("facilities")
-    ) {
-      return "Great! I'll prioritize properties with the amenities you mentioned. Let me update the search results.";
-    }
-
-    if (lowerMessage.includes("thank") || lowerMessage.includes("thanks")) {
-      return "You're welcome! I'm here to help you find the perfect property. Feel free to ask if you need anything else.";
-    }
-
-    // Default responses
-    const defaultResponses = [
-      "I'm analyzing your requirements and updating the property recommendations accordingly.",
-      "Let me search for properties that match your criteria. I'll have results for you shortly.",
-      "Based on your preferences, I'm filtering through our property database to find the best matches.",
-      "I understand your needs. Let me refine the search results to better match what you're looking for.",
-    ];
-
-    return defaultResponses[
-      Math.floor(Math.random() * defaultResponses.length)
-    ];
-  };
+    // Add a message to indicate the feature is activated/deactivated
+    setTimeout(() => {
+      const toggleMessage: ChatMessage = {
+        id: (Date.now() + 3).toString(),
+        type: "ai",
+        content: isPersonalizedActive
+          ? "AI Personalized Properties has been deactivated. I'll now show you all available properties."
+          : "AI Personalized Properties is now active! I'll prioritize recommendations based on your preferences and search history.",
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, toggleMessage])
+    }, 500)
+  }
 
   const classifyUserIntent = async (message: string): Promise<string> => {
     try {
@@ -245,8 +227,14 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
         <p className="text-sm text-gray-500 leading-relaxed">
           Feel free to enter whatever details you like
         </p>
+
+        <div className="flex justify-center">
+          <AiPersonalizedToggle isActive={isPersonalizedActive} onToggle={handlePersonalizedToggle} />
+        </div>
+        
       </div>
 
+     
       {/* Chat Messages */}
       <div className="flex-1 px-6 pb-6 space-y-4 overflow-y-auto">
         {messages.map((message, index) => (
