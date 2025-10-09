@@ -8,6 +8,8 @@ import { useState, useRef, useEffect } from "react";
 import { MessageSquare, ThumbsUp, ThumbsDown, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AiPersonalizedToggle } from "./ai-personalized-toggle"
+
 
 interface ChatMessage {
   id: string;
