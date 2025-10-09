@@ -158,11 +158,11 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
         };
 
         setMessages((prev) => [...prev, aiResponse]);
-      } else {
+      } else if (intent === "unknown") {
         const aiResponse: ChatMessage = {
           id: (Date.now() + 1).toString(),
           type: "ai",
-          content: generateAiResponse(userMessageContent),
+          content: "Sorry, I couldn't process your request. Could you please rephrase with more specific words ?",
           timestamp: new Date(),
         };
 

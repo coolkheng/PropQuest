@@ -250,7 +250,7 @@ app.post("/api/chat/classify", async (req, res) => {
         {
           role: "system",
           content:
-            "Classify user intent as: 'search', 'question', 'preference' or 'unknown'. Return JSON only.",
+            "Classify user intent as: 'search ', 'question', 'preference' or 'unknown. Return JSON only.",
         },
         { role: "user", content: message },
       ],
