@@ -249,15 +249,38 @@ app.post("/api/chat/classify", async (req, res) => {
       messages: [
         {
           role: "system",
-          content:
-            "Classify user intent as: 'search ', 'question', 'preference' or 'unknown. Return JSON only.",
+          content: `
+You are an intent classifier for a property chatbot.
+Classify the user's intent into one of these three:
+- "search" (the user wants to find, look for, or search properties)
+- "question" (the user asks about property info or concepts)
+- "unknown" (everything else)
+Return only JSON.
+      `,
         },
         { role: "user", content: message },
       ],
-      max_tokens: 10,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "intent_classification",
+          schema: {
+            type: "object",
+            properties: {
+              intent: {
+                type: "string",
+                enum: ["search", "question", "unknown"],
+              },
+            },
+            required: ["intent"],
+            additionalProperties: false,
+          },
+        },
+      },
+      max_tokens: 20,
       temperature: 0,
     });
-
+    console.log("OpenAI Response:", openaiResponse.choices[0].message.content);
     const intent = JSON.parse(openaiResponse.choices[0].message.content);
     res.json(intent);
   } catch (error) {
