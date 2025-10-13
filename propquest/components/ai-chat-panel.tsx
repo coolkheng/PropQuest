@@ -94,102 +94,113 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
     setIsAiTyping(true);
 
     try {
-      const intent = await classifyUserIntent(userMessageContent);
-      console.log("Classified intent:", intent);
+      if (!isPersonalizedActive) {
+        const intent = await classifyUserIntent(userMessageContent);
+        console.log("Classified intent:", intent);
 
-      if (intent === "search") {
-        const aiGeneratedFilters = await axios.post(
-          "http://localhost:5000/api/chat/search",
-          {
-            message: userMessageContent,
-          }
-        );
+        if (intent === "search") {
+          const aiGeneratedFilters = await axios.post(
+            "http://localhost:5000/api/chat/search",
+            {
+              message: userMessageContent,
+            }
+          );
 
-        console.log(aiGeneratedFilters.data.reply);
+          console.log(aiGeneratedFilters.data.reply);
 
-        const response = await axios.post(
-          "http://localhost:5000/api/properties/search",
-          {
-            filters: aiGeneratedFilters.data.reply,
-          }
-        );
+          const response = await axios.post(
+            "http://localhost:5000/api/properties/search",
+            {
+              filters: aiGeneratedFilters.data.reply,
+            }
+          );
 
-        const properties = response.data;
-        setProperties(properties); // Update the properties state with the API response
+          const properties = response.data;
+          setProperties(properties); // Update the properties state with the API response
 
-        const aiResponse: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          type: "ai",
-          content: `I found ${properties.length} properties matching your criteria. Check them out on the map!`,
-          timestamp: new Date(),
-        };
+          const aiResponse: ChatMessage = {
+            id: (Date.now() + 1).toString(),
+            type: "ai",
+            content: `I found ${properties.length} properties matching your criteria. Check them out on the map!`,
+            timestamp: new Date(),
+          };
 
-        setMessages((prev) => [...prev, aiResponse]);
-      } else if (intent === "question") {
-        const backendResponse = await axios.post(
-          "http://localhost:5000/api/chat/questions",
-          {
-            message: userMessageContent,
-          }
-        );
+          setMessages((prev) => [...prev, aiResponse]);
+        } else if (intent === "question") {
+          const backendResponse = await axios.post(
+            "http://localhost:5000/api/chat/questions",
+            {
+              message: userMessageContent,
+            }
+          );
 
-        const aiResponse: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          type: "ai",
-          content: backendResponse.data.reply,
-          timestamp: new Date(),
-        };
+          const aiResponse: ChatMessage = {
+            id: (Date.now() + 1).toString(),
+            type: "ai",
+            content: backendResponse.data.reply,
+            timestamp: new Date(),
+          };
 
-        setMessages((prev) => [...prev, aiResponse]);
-      } else if (intent === "unknown") {
-        const aiResponse: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          type: "ai",
-          content:
-            "Sorry, I couldn't process your request. Could you please rephrase with more specific words ?",
-          timestamp: new Date(),
-        };
+          setMessages((prev) => [...prev, aiResponse]);
+        } else if (intent === "unknown") {
+          const aiResponse: ChatMessage = {
+            id: (Date.now() + 1).toString(),
+            type: "ai",
+            content:
+              "Sorry, I couldn't process your request. Could you please rephrase with more specific words ?",
+            timestamp: new Date(),
+          };
 
-        setMessages((prev) => [...prev, aiResponse]);
+          setMessages((prev) => [...prev, aiResponse]);
+        }
       }
 
       // Handle AI Personalized Toggle
       if (isPersonalizedActive) {
-        while (isPersonalizedActive) {
-          if (!isPersonalizedActive || aiRequest.trim() === "") {
-            break;
-          }
+        try {
+          const backendResponse = await axios.post(
+            "http://localhost:5000/api/chat/preferences",
+            {
+              preference: aiRequest.trim(),
+            }
+          );
 
-          try {
-            const backendResponse = await axios.post(
-              "http://localhost:5000/api/chat/preferences",
-              {
-                preference: aiRequest.trim(),
-              }
-            );
+          const { intent, question, preferences } = backendResponse.data.reply;
+          console.log(intent);
+          console.log(question);
+          console.log(preferences);
 
+          if (intent === "ask" && question) {
+            const aiQuestion: ChatMessage = {
+              id: (Date.now() + 1).toString(),
+              type: "ai",
+              content: backendResponse.data.reply.question,
+              timestamp: new Date(),
+            };
+            setMessages((prev) => [...prev, aiQuestion]);
+          } else {
             const aiResponse: ChatMessage = {
               id: (Date.now() + 1).toString(),
               type: "ai",
-              content: backendResponse.data.reply,
+              content: reply,
               timestamp: new Date(),
             };
-
             setMessages((prev) => [...prev, aiResponse]);
-            setAiRequest(""); // Clear the input after sending
-          } catch (error) {
-            console.error("Error posting preferences to backend:", error);
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: (Date.now() + 2).toString(),
-                type: "ai",
-                content:
-                  "Sorry, I couldn't process your preferences. Please try again.",
-                timestamp: new Date(),
-              },
-            ]);
           }
+
+          setAiRequest(""); // Clear the input after sending
+        } catch (error) {
+          console.error("Error posting preferences to backend:", error);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: (Date.now() + 1).toString(),
+              type: "ai",
+              content:
+                "Sorry, I couldn't process your preferences. Please try again.",
+              timestamp: new Date(),
+            },
+          ]);
         }
       }
     } catch (error) {

@@ -283,6 +283,7 @@ Return only JSON.
     });
     console.log("OpenAI Response:", openaiResponse.choices[0].message.content);
     const intent = JSON.parse(openaiResponse.choices[0].message.content);
+
     res.json(intent);
   } catch (error) {
     console.error("Error with OpenAI API:", error?.response?.data || error);
@@ -331,7 +332,7 @@ app.post("/api/chat/preferences", async (req, res) => {
         {
           role: "system",
           content:
-            "You are a helpful property assistant. You must collect user preferences step-by-step to recommend properties.Your available preference keys are:[type, budget, beds, baths, furnishing, facilities, lease_type]. You must identify missing fields and ask one relevant question at a time.When all main preferences are filled, say 'Ready to search'. ALWAYS return in JSON format.",
+            "You are a helpful property assistant. You must collect user preferences step-by-step to recommend properties.Your available preference keys are:[type, budget, beds, baths, furnishing, facilities, lease_type]. You must identify missing fields and ask ONLY one relevant question at a time.When all main preferences are filled, say 'Ready to search'. ALWAYS return in JSON format.",
         },
         { role: "user", content: preference },
       ],
@@ -378,7 +379,7 @@ app.post("/api/chat/preferences", async (req, res) => {
       },
     });
 
-    const reply = openaiResponse.choices[0].message.content;
+    const reply = JSON.parse(openaiResponse.choices[0].message.content);
     res.json({ reply });
   } catch (error) {
     console.error("Error with OpenAI API:", error?.response?.data || error);
