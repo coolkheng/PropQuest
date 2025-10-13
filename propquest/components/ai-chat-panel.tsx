@@ -55,8 +55,8 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
         id: (Date.now() + 3).toString(),
         type: "ai",
         content: isPersonalizedActive
-          ? "AI Personalized Properties has been deactivated. I'll now show you all available properties."
-          : "AI Personalized Properties is now active! I'll prioritize recommendations based on your preferences and search history.",
+          ? "AI Personalized Properties has been deactivated."
+          : "AI Personalized Properties is now active! Let’s find your ideal property. Are you looking for a condo, landed house, or apartment?",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, toggleMessage]);
