@@ -131,6 +131,7 @@ app.post("/api/chat/search", async (req, res) => {
   }
 });
 
+
 app.post("/api/properties/search", async (req, res) => {
   let { filters } = req.body;
   filters = JSON.parse(filters);
@@ -330,12 +331,51 @@ app.post("/api/chat/preferences", async (req, res) => {
         {
           role: "system",
           content:
-            "You are an AI property assistant. Respond to user preferences with personalized property suggestions.",
+            "You are a helpful property assistant. You must collect user preferences step-by-step to recommend properties.Your available preference keys are:[type, budget, beds, baths, furnishing, facilities, lease_type]. You must identify missing fields and ask one relevant question at a time.When all main preferences are filled, say 'Ready to search'. ALWAYS return in JSON format.",
         },
         { role: "user", content: preference },
       ],
       max_tokens: 200,
-      temperature: 0.7,
+      temperature: 0.3,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "property_preference_schema",
+          schema: {
+            type: "object",
+            properties: {
+              intent: {
+                type: "string",
+                enum: ["ask", "search"],
+              },
+              question: {
+                type: ["string", "null"],
+              },
+              preferences: {
+                type: "object",
+                properties: {
+                  price_min: { type: "integer", nullable: true },
+                  price_max: { type: "integer", nullable: true },
+                  beds_min: { type: "integer", nullable: true },
+                  baths_min: { type: "integer", nullable: true },
+                  sqft_min: { type: "integer", nullable: true },
+                  sqft_max: { type: "integer", nullable: true },
+                  house_type: { type: "string", nullable: true },
+                  lease_type: { type: "string", nullable: true },
+                  furnishing: { type: "string", nullable: true },
+                  facilities: {
+                    type: "array",
+                    items: { type: "string" },
+                    nullable: true,
+                  },
+                },
+              },
+            },
+            required: ["intent", "question", "preferences"],
+            additionalProperties: false,
+          },
+        },
+      },
     });
 
     const reply = openaiResponse.choices[0].message.content;
