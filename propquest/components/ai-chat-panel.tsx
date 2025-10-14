@@ -37,6 +37,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
       timestamp: new Date(),
     },
   ]);
+  const [preferences, setPreferences] = useState<Record<string, any>>({}); // Initialize preferences state
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -166,23 +167,27 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
           );
 
           const { intent, question, preferences } = backendResponse.data.reply;
-          console.log(intent);
-          console.log(question);
-          console.log(preferences);
+
+          // Merge updated preferences with existing preferences
+          setPreferences((prevPreferences) => {
+            const Updated_Preferences = { ...prevPreferences, ...preferences };
+            return Updated_Preferences;
+          });
 
           if (intent === "ask" && question) {
             const aiQuestion: ChatMessage = {
               id: (Date.now() + 1).toString(),
               type: "ai",
-              content: backendResponse.data.reply.question,
+              content: question,
               timestamp: new Date(),
             };
             setMessages((prev) => [...prev, aiQuestion]);
-          } else {
+          } else if (intent === "ready to search") {
             const aiResponse: ChatMessage = {
               id: (Date.now() + 1).toString(),
               type: "ai",
-              content: reply,
+              content:
+                "Great! Let me find properties that match your preferences.",
               timestamp: new Date(),
             };
             setMessages((prev) => [...prev, aiResponse]);
