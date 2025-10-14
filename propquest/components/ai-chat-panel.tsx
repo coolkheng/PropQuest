@@ -170,8 +170,12 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
 
           // Merge updated preferences with existing preferences
           setPreferences((prevPreferences) => {
-            const Updated_Preferences = { ...prevPreferences, ...preferences };
-            return Updated_Preferences;
+            const updatedPreferences = mergePreferences(
+              prevPreferences,
+              preferences
+            );
+            console.log("Updated Preferences:", updatedPreferences);
+            return updatedPreferences;
           });
 
           if (intent === "ask" && question) {
@@ -269,6 +273,20 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
       </div>
     </div>
   );
+
+  // Function to merge preferences
+  function mergePreferences(
+    oldPrefs: Record<string, any>,
+    newPrefs: Record<string, any>
+  ): Record<string, any> {
+    const merged = { ...oldPrefs }; // start with existing data
+    for (const key in newPrefs) {
+      if (newPrefs[key] !== null && newPrefs[key] !== undefined) {
+        merged[key] = newPrefs[key]; // overwrite only if the new value is non-null
+      }
+    }
+    return merged;
+  }
 
   return (
     <div className="w-full h-full bg-white flex flex-col">
