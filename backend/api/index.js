@@ -322,9 +322,20 @@ app.post("/api/chat/questions", async (req, res) => {
 
 // Endpoint to handle user preferences
 app.post("/api/chat/preferences", async (req, res) => {
-  const { preference, null_preferences } = req.body;
-  console.log("Received Preference:", preference);
-  console.log("Received Null Preferences:", null_preferences);
+  const { preference , Exisiting_preferences } = req.body;
+  console.log("Existing Preferences:", Exisiting_preferences);
+  let nullKeysString = "";
+  Object.keys(Exisiting_preferences).forEach((key) => {
+    if (
+      Exisiting_preferences[key] === null 
+    ) {
+      nullKeysString += `${key},`;
+    }
+  });
+
+  nullKeysString = nullKeysString.slice(0, -1); // Remove the trailing comma if any
+  console.log("Null Keys String:", nullKeysString);
+
   if (!preference) {
     return res.status(400).json({ error: "Preference is required" });
   }
@@ -339,7 +350,7 @@ app.post("/api/chat/preferences", async (req, res) => {
             `You are a property assistant. 
             You must collect user preferences step-by-step to recommend properties.
             Your available preference keys are:[type, budget, beds, baths, furnishing, facilities, lease_type]. 
-            Missing fields are ${null_preferences}
+            Missing keys are:${nullKeysString}.
             You must identify missing fields and ask ONLY one relevant question at a time.
             When all main preferences are filled, say 'Ready to search'. 
             You can set the value to null if the user has no preference.

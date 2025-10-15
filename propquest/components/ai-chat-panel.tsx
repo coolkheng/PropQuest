@@ -37,10 +37,13 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
       timestamp: new Date(),
     },
   ]);
-  const [preferences, setPreferences] = useState<Record<string, any>>({}); // Initialize preferences state
+  const [Exisiting_preferences, setPreferences] = useState<Record<string, any>>(
+    {}
+  ); // Initialize preferences state
   const [null_preferences, setNullPreferences] = useState<string>(
     "price_min,price_max,beds_min,baths_min,sqft_min,sqft_max,house_type,lease_type,furnishing,facilities"
-  ); // To track null preferences
+  );
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -51,11 +54,8 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
 
   const handlePersonalizedToggle = () => {
     setIsPersonalizedActive(!isPersonalizedActive);
-    
+
     setPreferences({}); // Reset preferences when toggling
-    setNullPreferences(
-      "price_min,price_max,beds_min,baths_min,sqft_min,sqft_max,house_type,lease_type,furnishing,facilities"
-    ); // Reset null preferences when toggling
 
     // Add a message to indicate the feature is activated/deactivated
     setTimeout(() => {
@@ -170,31 +170,25 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
             "http://localhost:5000/api/chat/preferences",
             {
               preference: aiRequest.trim(),
-              null_preferences: null_preferences, // Send current null preferences
+              Exisiting_preferences: Exisiting_preferences, // Send existing preferences
             }
           );
 
           const { intent, question, preferences } = backendResponse.data.reply;
-          console.log("Backend Response:", backendResponse.data.reply);
+          console.log("Backend Response:", preferences);
 
           setPreferences((prevPreferences) => {
-            const updatedPreferences = mergePreferences(
-              prevPreferences,
-              preferences
-            );
-            
-            console.log("Updated Preferences:", updatedPreferences);
-            return updatedPreferences;
-            
-          });
+            if (Object.keys(prevPreferences).length === 0) {
+              return preferences;
+            } else {
+              const updatedPreferences = mergePreferences(
+                prevPreferences,
+                preferences
+              );
 
-          Object.keys(preferences).forEach((key) => {
-              if (preferences[key] !== null) {
-                setNullPreferences((prev) => prev.replace(`{${key}} `, ""));
-                
-              }
+              return updatedPreferences;
             }
-          );
+          });
 
           if (intent === "ask" && question) {
             const aiQuestion: ChatMessage = {
@@ -305,6 +299,8 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
     }
     return merged;
   }
+
+
 
   return (
     <div className="w-full h-full bg-white flex flex-col">
