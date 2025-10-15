@@ -253,9 +253,9 @@ app.post("/api/chat/classify", async (req, res) => {
           content: `
 You are an intent classifier for a property chatbot.
 Classify the user's intent into one of these three:
-- "search" (the user wants to find, look for, or search properties)
+- "search" (the user wants to find,search properties)
 - "question" (the user asks about property info or concepts)
-- "unknown" (everything else)
+- "unknown" 
 Return only JSON.
       `,
         },
@@ -302,7 +302,9 @@ app.post("/api/chat/questions", async (req, res) => {
         {
           role: "system",
           content:
-            "You are an AI property assistant. Answer user questions related to real estate in Malaysia. Provide concise and accurate responses.",
+            `You are an AI property assistant. 
+            Answer user questions related to real estate in Malaysia. 
+            Provide concise and accurate responses.`,
         },
         { role: "user", content: message },
       ],
@@ -320,7 +322,9 @@ app.post("/api/chat/questions", async (req, res) => {
 
 // Endpoint to handle user preferences
 app.post("/api/chat/preferences", async (req, res) => {
-  const { preference } = req.body;
+  const { preference, null_preferences } = req.body;
+  console.log("Received Preference:", preference);
+  console.log("Received Null Preferences:", null_preferences);
   if (!preference) {
     return res.status(400).json({ error: "Preference is required" });
   }
@@ -332,11 +336,19 @@ app.post("/api/chat/preferences", async (req, res) => {
         {
           role: "system",
           content:
-            "You are a helpful property assistant. You must collect user preferences step-by-step to recommend properties.Your available preference keys are:[type, budget, beds, baths, furnishing, facilities, lease_type]. You must identify missing fields and ask ONLY one relevant question at a time.When all main preferences are filled, say 'Ready to search'. ALWAYS return in JSON format.",
+            `You are a property assistant. 
+            You must collect user preferences step-by-step to recommend properties.
+            Your available preference keys are:[type, budget, beds, baths, furnishing, facilities, lease_type]. 
+            Missing fields are ${null_preferences}
+            You must identify missing fields and ask ONLY one relevant question at a time.
+            When all main preferences are filled, say 'Ready to search'. 
+            You can set the value to null if the user has no preference.
+            If the user is unclear, ask for clarification.
+            ALWAYS return in JSON format.`,
         },
         { role: "user", content: preference },
       ],
-      max_tokens: 200,
+      max_tokens: 150,
       temperature: 0.3,
       response_format: {
         type: "json_schema",

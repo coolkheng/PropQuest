@@ -38,7 +38,9 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
     },
   ]);
   const [preferences, setPreferences] = useState<Record<string, any>>({}); // Initialize preferences state
-
+  const [null_preferences, setNullPreferences] = useState<string>(
+    "price_min,price_max,beds_min,baths_min,sqft_min,sqft_max,house_type,lease_type,furnishing,facilities"
+  ); // To track null preferences
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -49,6 +51,11 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
 
   const handlePersonalizedToggle = () => {
     setIsPersonalizedActive(!isPersonalizedActive);
+    
+    setPreferences({}); // Reset preferences when toggling
+    setNullPreferences(
+      "price_min,price_max,beds_min,baths_min,sqft_min,sqft_max,house_type,lease_type,furnishing,facilities"
+    ); // Reset null preferences when toggling
 
     // Add a message to indicate the feature is activated/deactivated
     setTimeout(() => {
@@ -163,20 +170,31 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
             "http://localhost:5000/api/chat/preferences",
             {
               preference: aiRequest.trim(),
+              null_preferences: null_preferences, // Send current null preferences
             }
           );
 
           const { intent, question, preferences } = backendResponse.data.reply;
+          console.log("Backend Response:", backendResponse.data.reply);
 
-          // Merge updated preferences with existing preferences
           setPreferences((prevPreferences) => {
             const updatedPreferences = mergePreferences(
               prevPreferences,
               preferences
             );
+            
             console.log("Updated Preferences:", updatedPreferences);
             return updatedPreferences;
+            
           });
+
+          Object.keys(preferences).forEach((key) => {
+              if (preferences[key] !== null) {
+                setNullPreferences((prev) => prev.replace(`{${key}} `, ""));
+                
+              }
+            }
+          );
 
           if (intent === "ask" && question) {
             const aiQuestion: ChatMessage = {
