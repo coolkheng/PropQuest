@@ -349,9 +349,8 @@ app.post("/api/chat/preferences", async (req, res) => {
           content:
             `You are a property assistant. 
             You must collect user preferences step-by-step to recommend properties.
-            Your available preference keys are:[type, budget, beds, baths, furnishing, facilities, lease_type]. 
             Missing keys are:${nullKeysString}.
-            You must identify missing fields and ask ONLY one relevant question at a time.
+            You must identify missing fields and ask ONLY one relevant question at a time and update the missing keys that you asked.
             When all main preferences are filled, say 'Ready to search'. 
             You can set the value to null if the user has no preference.
             If the user is unclear, ask for clarification.
