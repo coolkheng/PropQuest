@@ -182,7 +182,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
         }
 
         console.log("Conversation sent to backend:", conversation.current);
-        
+
         try {
           const backendResponse = await axios.post(
             "http://localhost:5000/api/chat/preferences",
@@ -196,7 +196,10 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
             question: backendQuestion,
             preferences,
           } = backendResponse.data.reply;
+          
           question.current = backendQuestion;
+
+          console.log("Backend response:", backendResponse.data.reply);
 
           setPreferences((prevPreferences) => {
             if (Object.keys(prevPreferences).length === 0) {
