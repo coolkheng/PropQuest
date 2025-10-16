@@ -131,7 +131,6 @@ app.post("/api/chat/search", async (req, res) => {
   }
 });
 
-
 app.post("/api/properties/search", async (req, res) => {
   let { filters } = req.body;
   filters = JSON.parse(filters);
@@ -301,8 +300,7 @@ app.post("/api/chat/questions", async (req, res) => {
       messages: [
         {
           role: "system",
-          content:
-            `You are an AI property assistant. 
+          content: `You are an AI property assistant. 
             Answer user questions related to real estate in Malaysia. 
             Provide concise and accurate responses.`,
         },
@@ -322,42 +320,30 @@ app.post("/api/chat/questions", async (req, res) => {
 
 // Endpoint to handle user preferences
 app.post("/api/chat/preferences", async (req, res) => {
-  const { preference , Exisiting_preferences } = req.body;
-  console.log("Existing Preferences:", Exisiting_preferences);
-  let nullKeysString = "";
-  Object.keys(Exisiting_preferences).forEach((key) => {
-    if (
-      Exisiting_preferences[key] === null 
-    ) {
-      nullKeysString += `${key},`;
-    }
-  });
+  const { conversation } = req.body;
+  console.log("Received Conversation:", conversation);
 
-  nullKeysString = nullKeysString.slice(0, -1); // Remove the trailing comma if any
-  console.log("Null Keys String:", nullKeysString);
-
-  if (!preference) {
-    return res.status(400).json({ error: "Preference is required" });
+  if (!conversation) { 
+    return res.status(400).json({ error: "Conversation is required" });
   }
+  const message = [
+        {
+          role: "system",
+          content: `You are a property assistant. 
+            You must collect user preferences step-by-step... 
+            ALWAYS return in JSON format
+            When all main preferences are filled, say 'Ready to search'.
+            If the user has no preference, set the value to null.
+            If the user is unclear, ask for clarification.
+            ALWAYS return in JSON format.`,
+        }];
+
+        message.push(...conversation);
 
   try {
     const openaiResponse = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content:
-            `You are a property assistant. 
-            You must collect user preferences step-by-step to recommend properties.
-            Missing keys are:${nullKeysString}.
-            You must identify missing fields and ask ONLY one relevant question at a time and update the missing keys that you asked.
-            When all main preferences are filled, say 'Ready to search'. 
-            You can set the value to null if the user has no preference.
-            If the user is unclear, ask for clarification.
-            ALWAYS return in JSON format.`,
-        },
-        { role: "user", content: preference },
-      ],
+      messages: message,
       max_tokens: 150,
       temperature: 0.3,
       response_format: {

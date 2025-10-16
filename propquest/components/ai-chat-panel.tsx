@@ -40,9 +40,17 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
   const [Exisiting_preferences, setPreferences] = useState<Record<string, any>>(
     {}
   ); // Initialize preferences state
-  const [null_preferences, setNullPreferences] = useState<string>(
-    "price_min,price_max,beds_min,baths_min,sqft_min,sqft_max,house_type,lease_type,furnishing,facilities"
-  );
+
+  const question = useRef("");
+  const conversation = useRef<Array<{ role: string; content: string }>>([]);
+
+  function addMessage(role: string, content: string) {
+    conversation.current.push({ role, content });
+  }
+
+  function addQuestion(newQuestion: string) {
+    question.current = newQuestion;
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -56,6 +64,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
     setIsPersonalizedActive(!isPersonalizedActive);
 
     setPreferences({}); // Reset preferences when toggling
+    conversation.current = []; // Reset conversation when toggling
 
     // Add a message to indicate the feature is activated/deactivated
     setTimeout(() => {
@@ -165,17 +174,29 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
 
       // Handle AI Personalized Toggle
       if (isPersonalizedActive) {
+
+        if(conversation.current.length === 0){
+          addMessage("user", `Last Question: Are you looking for a condo, landed house, or apartment? Preferences:${aiRequest.trim()}`);
+        }else{  
+          addMessage("user", `Last Question: ${question.current} Preferences: ${aiRequest.trim()}`);
+        }
+
+        console.log("Conversation sent to backend:", conversation.current);
+        
         try {
           const backendResponse = await axios.post(
             "http://localhost:5000/api/chat/preferences",
             {
-              preference: aiRequest.trim(),
-              Exisiting_preferences: Exisiting_preferences, // Send existing preferences
+              conversation: conversation.current,
             }
           );
 
-          const { intent, question, preferences } = backendResponse.data.reply;
-          console.log("Backend Response:", preferences);
+          const {
+            intent,
+            question: backendQuestion,
+            preferences,
+          } = backendResponse.data.reply;
+          question.current = backendQuestion;
 
           setPreferences((prevPreferences) => {
             if (Object.keys(prevPreferences).length === 0) {
@@ -190,11 +211,11 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
             }
           });
 
-          if (intent === "ask" && question) {
+          if (intent === "ask" && backendQuestion) {
             const aiQuestion: ChatMessage = {
               id: (Date.now() + 1).toString(),
               type: "ai",
-              content: question,
+              content: backendQuestion,
               timestamp: new Date(),
             };
             setMessages((prev) => [...prev, aiQuestion]);
@@ -299,8 +320,6 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
     }
     return merged;
   }
-
-
 
   return (
     <div className="w-full h-full bg-white flex flex-col">
