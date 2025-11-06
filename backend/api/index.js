@@ -332,11 +332,12 @@ app.post("/api/chat/preferences", async (req, res) => {
           content: `You are a property assistant. 
             You must collect user preferences step-by-step... 
             ALWAYS return in JSON format
-            If the main preferences havent been filled, no need to provide full preferences in your JSON. 
-            When all main preferences are filled, say 'Ready to search' and provide the full preferences.
+            When all main preferences are filled, say 'Search' in intent and provide the full preferences.
             If the user has no preference, set the value to null.
             If the user is unclear, ask for clarification.
-            ALWAYS return in JSON format.`,
+            Condo = Condominium
+            `
+            ,
         }];
 
         message.push(...conversation);

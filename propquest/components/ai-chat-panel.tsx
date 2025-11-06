@@ -222,7 +222,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
               timestamp: new Date(),
             };
             setMessages((prev) => [...prev, aiQuestion]);
-          } else if (intent === "ready to search") {
+          } else if (intent === "search") {
             const aiResponse: ChatMessage = {
               id: (Date.now() + 1).toString(),
               type: "ai",
