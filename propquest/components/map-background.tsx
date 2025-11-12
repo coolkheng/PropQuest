@@ -41,10 +41,12 @@ export function MapBackground({
       ],
       { css: true }
     ).then(([esriConfig, Map, MapView, locator, Graphic]) => {
-      // Use your API key from .env
-      esriConfig.apiKey = process.env.MAP_ARCGS_URI;
+      
+  // Use your API key from .env
 
-      const map = new Map({ basemap: "arcgis-streets" });
+      esriConfig.apiKey = process.env.NEXT_PUBLIC_ARCGIS_API_KEY;
+
+      const map = new Map({ basemap: "streets" });
 
       const view = new MapView({
         container: mapRef.current,
@@ -59,7 +61,7 @@ export function MapBackground({
       };
 
       const geocodeUrl =
-        "http://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer";
+        "https://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer";
 
       // Use the geocoder
       // Loop through properties
