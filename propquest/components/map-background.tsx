@@ -31,6 +31,8 @@ export function MapBackground({
   const mapRef = useRef(null);
 
   useEffect(() => {
+    let moveHandler: any | null = null;
+    let view: any | null = null;
     loadModules(
       [
         "esri/config",
@@ -48,12 +50,17 @@ export function MapBackground({
 
       const map = new Map({ basemap: "streets" });
 
-      const view = new MapView({
+      view = new MapView({
         container: mapRef.current,
         map: map,
         center: [101.6869, 3.139], // default center (Kuala Lumpur)
-        zoom: 12,
+        zoom: 15,
       });
+
+      // Disable default auto-open on click; we'll control popup manually on hover
+      try {
+        view.popup.autoOpenEnabled = false;
+      } catch {}
 
       // Address to geocode
       const address = {
@@ -88,31 +95,72 @@ export function MapBackground({
                 height: "40px",
               };
 
-              // const textSymbol = {
-              //   type: "text",
-              //   color: "black",
-              //   text: property.title,
-              //   font: {
-              //     size: 12,
-              //     family: "Arial",
-              //     weight: "bold",
-              //   },
-              //   yoffset: -20,
-              //   haloColor: "white",
-              //   haloSize: "3px",
-              // };
+              const graphic = new Graphic({
+                geometry: point,
+                symbol: markerSymbol,
+                attributes: {
+                  title: property.title,
+                  address: property.address,
+                  price: property.price,
+                  beds: property.beds,
+                  baths: property.baths,
+                  sqft: property.sqft,
+                },
+              });
 
-              view.graphics.addMany([
-                new Graphic({ geometry: point, symbol: markerSymbol }),
-                // new Graphic({ geometry: point, symbol: textSymbol }),
-              ]);
+              view.graphics.add(graphic);
             }
           })
           .catch((error: any) => {
             console.error(`Geocoding failed for ${property.address}:`, error);
           });
       });
+
+      // Hover-only popup using pointer-move and hitTest
+      moveHandler = view.on("pointer-move", (event: any) => {
+        view
+          .hitTest(event)
+          .then((response: any) => {
+            const hit = response.results?.find((r: any) => r.graphic);
+            if (hit && hit.graphic && hit.graphic.attributes) {
+              const attrs = hit.graphic.attributes;
+              view.popup.open({
+                title: attrs.title || "Property",
+                content: `
+                  <div style="line-height:1.4">
+                    <div><strong>Address:</strong> ${attrs.address ?? "-"}</div>
+                    <div><strong>Price:</strong> ${attrs.price ?? "-"}</div>
+                    <div><strong>Beds:</strong> ${attrs.beds ?? "-"}</div>
+                    <div><strong>Baths:</strong> ${attrs.baths ?? "-"}</div>
+                    <div><strong>Sqft:</strong> ${attrs.sqft ?? "-"}</div>
+                  </div>
+                `,
+                location: hit.graphic.geometry,
+              });
+            } else {
+              view.popup.close();
+            }
+          })
+          .catch(() => {
+            // ignore hitTest errors
+          });
+      });
     });
+    // Cleanup: remove pointer handler and destroy the view
+    return () => {
+      if (moveHandler && typeof moveHandler.remove === "function") {
+        try {
+          moveHandler.remove();
+        } catch {}
+      }
+      moveHandler = null;
+      if (view && typeof view.destroy === "function") {
+        try {
+          view.destroy();
+        } catch {}
+      }
+      view = null;
+    };
   }, [Property]);
 
   return <div ref={mapRef} className="w-full h-full rounded-xl shadow-lg" />;
