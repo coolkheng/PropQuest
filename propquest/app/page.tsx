@@ -33,7 +33,7 @@ export default function HomePage() {
   useEffect(() => {
     const fetchProperties = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/properties");
+        const res = await axios.get("http://localhost:5001/api/properties");
         const data: Property[] = res.data;
         setProperties(data);
       } catch (error) {
