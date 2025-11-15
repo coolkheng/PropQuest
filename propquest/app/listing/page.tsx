@@ -38,8 +38,9 @@ export default function ListingPage() {
   useEffect(() => {
     const fetchProperties = async () => {
       try {
+        // Backend now uses PORT from env or 5001 by default to avoid conflicts on macOS.
         const res = await axios.get<Property[]>(
-          "http://localhost:5000/api/properties"
+          "http://localhost:5001/api/properties"
         );
         const data: Property[] = res.data;
         setProperties(data);

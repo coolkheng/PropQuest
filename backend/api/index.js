@@ -7,7 +7,8 @@ const { OpenAI } = require("openai");
 dotenv.config();
 
 const app = express();
-const port = 5000;
+// Allow overriding the port via environment (useful if 5000 is occupied on macOS)
+const port = process.env.PORT || 5001;
 const cors = require("cors");
 app.use(cors());
 
@@ -322,24 +323,24 @@ app.post("/api/chat/preferences", async (req, res) => {
   const { conversation } = req.body;
   console.log("Received Conversation:", conversation);
 
-  if (!conversation) { 
+  if (!conversation) {
     return res.status(400).json({ error: "Conversation is required" });
   }
   const message = [
-        {
-          role: "system",
-          content: `You are a property assistant. 
+    {
+      role: "system",
+      content: `You are a property assistant. 
             You must collect user preferences step-by-step... 
             ALWAYS return in JSON format
             When all main preferences are filled, say 'Search' in intent and provide the full preferences.
             If the user has no preference, set the value to null.
             If the user is unclear, ask for clarification.
             Condo = Condominium
-            `
-            ,
-        }];
+            `,
+    },
+  ];
 
-        message.push(...conversation);
+  message.push(...conversation);
 
   try {
     const openaiResponse = await openai.chat.completions.create({
