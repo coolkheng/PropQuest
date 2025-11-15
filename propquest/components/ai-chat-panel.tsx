@@ -83,7 +83,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
   const classifyUserIntent = async (message: string): Promise<string> => {
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/chat/classify",
+        "http://localhost:5001/api/chat/classify",
         {
           message,
         }
@@ -117,7 +117,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
 
         if (intent === "search") {
           const aiGeneratedFilters = await axios.post(
-            "http://localhost:5000/api/chat/search",
+            "http://localhost:5001/api/chat/search",
             {
               message: userMessageContent,
             }
@@ -126,7 +126,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
           console.log(aiGeneratedFilters.data.reply);
 
           const response = await axios.post(
-            "http://localhost:5000/api/properties/search",
+            "http://localhost:5001/api/properties/search",
             {
               filters: aiGeneratedFilters.data.reply,
             }
@@ -145,7 +145,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
           setMessages((prev) => [...prev, aiResponse]);
         } else if (intent === "question") {
           const backendResponse = await axios.post(
-            "http://localhost:5000/api/chat/questions",
+            "http://localhost:5001/api/chat/questions",
             {
               message: userMessageContent,
             }
@@ -174,18 +174,25 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
 
       // Handle AI Personalized Toggle
       if (isPersonalizedActive) {
-
-        if(conversation.current.length === 0){
-          addMessage("user", `Last Question: Are you looking for a condo, landed house, or apartment? Preferences:${aiRequest.trim()}`);
-        }else{  
-          addMessage("user", `Last Question: ${question.current} Preferences: ${aiRequest.trim()}`);
+        if (conversation.current.length === 0) {
+          addMessage(
+            "user",
+            `Last Question: Are you looking for a condo, landed house, or apartment? Preferences:${aiRequest.trim()}`
+          );
+        } else {
+          addMessage(
+            "user",
+            `Last Question: ${
+              question.current
+            } Preferences: ${aiRequest.trim()}`
+          );
         }
 
         console.log("Conversation sent to backend:", conversation.current);
 
         try {
           const backendResponse = await axios.post(
-            "http://localhost:5000/api/chat/preferences",
+            "http://localhost:5001/api/chat/preferences",
             {
               conversation: conversation.current,
             }
@@ -196,7 +203,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
             question: backendQuestion,
             preferences,
           } = backendResponse.data.reply;
-          
+
           question.current = backendQuestion;
 
           console.log("Backend response:", backendResponse.data.reply);

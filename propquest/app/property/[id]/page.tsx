@@ -127,7 +127,7 @@ export default function PropertyDetailPage({
         setLoading(true);
         const { id } = await params;
 
-        const res = await fetch(`http://localhost:5000/api/properties/${id}`);
+        const res = await fetch(`http://localhost:5001/api/properties/${id}`);
         if (!res.ok) throw new Error("Failed to fetch property data");
         const data = await res.json();
         setPropertyData(data);
