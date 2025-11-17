@@ -8,6 +8,7 @@ import { ListingControls } from "@/components/listing-controls";
 import { ListingHeader } from "@/components/listing-header";
 import { PropertyGrid } from "@/components/property-grid";
 import { LoadMoreSection } from "@/components/load-more-section";
+import { FiltersModal, Filters } from "@/components/filters-modal";
 import axios from "axios";
 
 // ✅ Locally define the Property interface
@@ -32,6 +33,8 @@ interface Property {
 export default function ListingPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<Filters | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -58,7 +61,7 @@ export default function ListingPage() {
   };
 
   const handleFilterClick = () => {
-    console.log("Filter clicked");
+    setShowFilters(true);
   };
 
   const handleLoadMore = () => {
@@ -66,28 +69,124 @@ export default function ListingPage() {
     setTimeout(() => setIsLoading(false), 1000);
   };
 
+  // Count active filters
+  const activeFilterCount = filters
+    ? Object.entries(filters).filter(([key, value]) => {
+        if (value === null || value === undefined) return false;
+        if (typeof value === "string" && value === "") return false;
+        if (Array.isArray(value) && value.length === 0) return false;
+        return true;
+      }).length
+    : 0;
+
+  // derive the displayed properties based on searchQuery and filters
+  const displayedProperties = properties.filter((p) => {
+    // basic free-text search from the floating search bar
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase().trim();
+      const hay = [p.title, p.address, p.house_type]
+        .concat(p.facilities || [])
+        .join(" ")
+        .toLowerCase();
+      if (!q.split(" ").every((tok) => hay.includes(tok))) return false;
+    }
+
+    // apply filters if present
+    if (filters) {
+      // property type - now supports multiple types
+      if (filters.propertyType && filters.propertyType.length > 0) {
+        const matchesType = filters.propertyType.some((type) =>
+          p.house_type.toLowerCase().includes(type.toLowerCase())
+        );
+        if (!matchesType) return false;
+      }
+      // min size (p.sqft might be string, try to parse numbers)
+      if (filters.minSize != null) {
+        const sqft = Number((p.sqft || "").replace(/[^0-9.]/g, ""));
+        if (!Number.isFinite(sqft) || sqft < (filters.minSize || 0))
+          return false;
+      }
+      // rooms / toilets (p.beds/p.baths or beds,baths strings)
+      if (filters.rooms != null) {
+        const beds = Number((p.beds || "").replace(/[^0-9.]/g, ""));
+        if (!Number.isFinite(beds) || beds < filters.rooms) return false;
+      }
+      if (filters.toilets != null) {
+        const baths = Number((p.baths || "").replace(/[^0-9.]/g, ""));
+        if (!Number.isFinite(baths) || baths < filters.toilets) return false;
+      }
+      // price range
+      if (filters.minPrice != null || filters.maxPrice != null) {
+        const price = Number((p.price || "").replace(/[^0-9.]/g, ""));
+        if (
+          filters.minPrice != null &&
+          (!Number.isFinite(price) || price < filters.minPrice)
+        )
+          return false;
+        if (
+          filters.maxPrice != null &&
+          (!Number.isFinite(price) || price > filters.maxPrice)
+        )
+          return false;
+      }
+      // keywords
+      if (filters.keywords && filters.keywords.length > 0) {
+        const hay = [p.title, p.address, p.house_type]
+          .concat(p.facilities || [])
+          .join(" ")
+          .toLowerCase();
+        if (!filters.keywords.every((k) => hay.includes(k.toLowerCase())))
+          return false;
+      }
+    }
+
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
       <TopBar />
 
       <div className="relative">
-        <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-10 w-full max-w-2xl px-4">
-          <FloatingSearchBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            className="bg-white/95 backdrop-blur-sm rounded-full shadow-lg border border-white/20 text-lg "
-          />
+        <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-4xl px-4">
+          <div
+            className={`transition-all duration-300 ease-out ${
+              showFilters ? "shadow-lg" : ""
+            }`}
+          >
+            <FloatingSearchBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              className=""
+              onIconClick={() => setShowFilters(true)}
+              onInputClick={() => setShowFilters(true)}
+              isExpanded={showFilters}
+            />
+            <FiltersModal
+              open={showFilters}
+              onClose={() => setShowFilters(false)}
+              onApply={(f) => setFilters(f)}
+              onClear={() => {
+                setSearchQuery("");
+                setFilters(null);
+              }}
+              initial={filters ?? undefined}
+            />
+          </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6 pt-24">
-        <ListingControls onFilterClick={handleFilterClick} />
+        <ListingControls
+          onFilterClick={handleFilterClick}
+          filterCount={activeFilterCount}
+        />
         <ListingHeader
           title="Properties in Petaling Jaya"
-          resultCount={properties.length}
+          resultCount={displayedProperties.length}
         />
         <PropertyGrid
-          properties={properties}
+          properties={displayedProperties}
           onPropertyClick={(id) => handlePropertyClick(id)}
         />
         <LoadMoreSection onLoadMore={handleLoadMore} isLoading={isLoading} />
