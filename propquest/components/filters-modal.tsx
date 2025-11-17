@@ -160,7 +160,7 @@ export function FiltersModal({
             {/* Price Range and Built Up - Side by Side */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Price Range Slider */}
-              <div className="space-y-3">
+              <div className="space-y-3 lg:col-span-2">
                 <Label className="text-sm font-medium text-gray-700">
                   Price Range (MYR)
                 </Label>
@@ -175,7 +175,7 @@ export function FiltersModal({
                           e.target.value ? Number(e.target.value) : null
                         )
                       }
-                      className="flex-1"
+                      className="[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                     <span className="text-gray-400">-</span>
                     <Input
@@ -187,76 +187,82 @@ export function FiltersModal({
                           e.target.value ? Number(e.target.value) : null
                         )
                       }
-                      className="flex-1"
+                      className="[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                   </div>
-                  <div className="relative h-6 flex items-center">
-                    {/* Track background */}
-                    <div className="absolute w-full h-2 bg-gray-200 rounded-full" />
+                  <div className="space-y-2">
+                    <div className="relative h-6 flex items-center">
+                      {/* Track background */}
+                      <div className="absolute w-full h-2 bg-gray-200 rounded-full" />
 
-                    {/* Active range */}
-                    <div
-                      className="absolute h-2 bg-blue-600 rounded-full pointer-events-none z-10"
-                      style={{
-                        left: `${((minPrice ?? 0) / 10000000) * 100}%`,
-                        width: `${
-                          (((maxPrice ?? 10000000) - (minPrice ?? 0)) /
-                            10000000) *
-                          100
-                        }%`,
-                      }}
-                    />
+                      {/* Active range */}
+                      <div
+                        className="absolute h-2 bg-blue-600 rounded-full pointer-events-none z-10"
+                        style={{
+                          left: `${((minPrice ?? 0) / 5000000) * 100}%`,
+                          width: `${
+                            (((maxPrice ?? 5000000) - (minPrice ?? 0)) /
+                              5000000) *
+                            100
+                          }%`,
+                        }}
+                      />
 
-                    {/* Min range slider */}
-                    <input
-                      type="range"
-                      min="0"
-                      max="10000000"
-                      step="100000"
-                      value={minPrice ?? 0}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        if (val <= (maxPrice ?? 10000000)) {
-                          setMinPrice(val);
-                        }
-                      }}
-                      className="absolute w-full appearance-none bg-transparent pointer-events-auto cursor-pointer range-slider-thumb z-20"
-                    />
+                      {/* Min range slider */}
+                      <input
+                        type="range"
+                        min="0"
+                        max="5000000"
+                        step="50000"
+                        value={minPrice ?? 0}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          if (val <= (maxPrice ?? 5000000)) {
+                            setMinPrice(val);
+                          }
+                        }}
+                        className="absolute w-full appearance-none bg-transparent pointer-events-auto cursor-pointer range-slider-thumb z-20"
+                      />
 
-                    {/* Max range slider */}
-                    <input
-                      type="range"
-                      min="0"
-                      max="10000000"
-                      step="100000"
-                      value={maxPrice ?? 10000000}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        if (val >= (minPrice ?? 0)) {
-                          setMaxPrice(val);
-                        }
-                      }}
-                      className="absolute w-full appearance-none bg-transparent pointer-events-auto cursor-pointer range-slider-thumb z-20"
-                    />
+                      {/* Max range slider */}
+                      <input
+                        type="range"
+                        min="0"
+                        max="5000000"
+                        step="50000"
+                        value={maxPrice ?? 5000000}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          if (val >= (minPrice ?? 0)) {
+                            setMaxPrice(val);
+                          }
+                        }}
+                        className="absolute w-full appearance-none bg-transparent pointer-events-auto cursor-pointer range-slider-thumb z-20"
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>RM 0</span>
+                      <span>RM 5M</span>
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Built Up */}
-              <div className="space-y-3">
-                <Label className="text-sm font-medium text-gray-700">
-                  Built up (min sqft)
-                </Label>
-                <Input
-                  type="number"
-                  placeholder="e.g., 1000"
-                  value={minSize ?? ""}
-                  onChange={(e) =>
-                    setMinSize(e.target.value ? Number(e.target.value) : null)
-                  }
-                  className="[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                />
-              </div>
+            {/* Built Up */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-gray-700">
+                Built up (min sqft)
+              </Label>
+              <Input
+                type="number"
+                placeholder="e.g., 1000"
+                value={minSize ?? ""}
+                onChange={(e) =>
+                  setMinSize(e.target.value ? Number(e.target.value) : null)
+                }
+                className="[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
             </div>
 
             {/* Property Type */}
@@ -385,7 +391,8 @@ export function FiltersModal({
               </Button>
               <Button
                 onClick={apply}
-                className="transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl"
+                className="transition-all duration-200 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 
+             hover:opacity-90 shadow-lg hover:shadow-xl text-white"
               >
                 <svg
                   className="w-4 h-4 mr-2"

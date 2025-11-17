@@ -250,7 +250,7 @@ export default function PreferencesPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <input
                           type="number"
-                          className="rounded-lg border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="rounded-lg border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                           placeholder="Min (MYR)"
                           value={prefs.budget_range.min ?? ""}
                           onChange={(e) =>
@@ -264,7 +264,7 @@ export default function PreferencesPage() {
                         />
                         <input
                           type="number"
-                          className="rounded-lg border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="rounded-lg border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                           placeholder="Max (MYR)"
                           value={prefs.budget_range.max ?? ""}
                           onChange={(e) =>
@@ -359,7 +359,7 @@ export default function PreferencesPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <input
                           type="number"
-                          className="rounded-lg border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="rounded-lg border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                           placeholder="Minimum size (sqft)"
                           value={prefs.min_size_sqft ?? ""}
                           onChange={(e) =>
@@ -371,7 +371,7 @@ export default function PreferencesPage() {
                         />
                         <input
                           type="number"
-                          className="rounded-lg border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="rounded-lg border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                           placeholder="Size tolerance (%)"
                           value={prefs.size_tolerance_pct ?? 10}
                           onChange={(e) =>
@@ -387,7 +387,7 @@ export default function PreferencesPage() {
                       <div className="grid grid-cols-2 gap-4 mt-3">
                         <input
                           type="number"
-                          className="rounded-lg border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="rounded-lg border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                           placeholder="Rooms (e.g., 3)"
                           value={prefs.rooms ?? ""}
                           onChange={(e) =>
@@ -399,7 +399,7 @@ export default function PreferencesPage() {
                         />
                         <input
                           type="number"
-                          className="rounded-lg border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="rounded-lg border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                           placeholder="Toilets (e.g., 2)"
                           value={prefs.toilets ?? ""}
                           onChange={(e) =>
