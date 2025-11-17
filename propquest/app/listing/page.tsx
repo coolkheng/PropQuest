@@ -9,6 +9,7 @@ import { ListingHeader } from "@/components/listing-header";
 import { PropertyGrid } from "@/components/property-grid";
 import { LoadMoreSection } from "@/components/load-more-section";
 import { FiltersModal, Filters } from "@/components/filters-modal";
+import { SortOption } from "@/components/sort-button";
 import axios from "axios";
 
 // ✅ Locally define the Property interface
@@ -35,6 +36,7 @@ export default function ListingPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<Filters | null>(null);
+  const [sortOption, setSortOption] = useState<SortOption | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -80,68 +82,97 @@ export default function ListingPage() {
     : 0;
 
   // derive the displayed properties based on searchQuery and filters
-  const displayedProperties = properties.filter((p) => {
-    // basic free-text search from the floating search bar
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase().trim();
-      const hay = [p.title, p.address, p.house_type]
-        .concat(p.facilities || [])
-        .join(" ")
-        .toLowerCase();
-      if (!q.split(" ").every((tok) => hay.includes(tok))) return false;
-    }
-
-    // apply filters if present
-    if (filters) {
-      // property type - now supports multiple types
-      if (filters.propertyType && filters.propertyType.length > 0) {
-        const matchesType = filters.propertyType.some((type) =>
-          p.house_type.toLowerCase().includes(type.toLowerCase())
-        );
-        if (!matchesType) return false;
-      }
-      // min size (p.sqft might be string, try to parse numbers)
-      if (filters.minSize != null) {
-        const sqft = Number((p.sqft || "").replace(/[^0-9.]/g, ""));
-        if (!Number.isFinite(sqft) || sqft < (filters.minSize || 0))
-          return false;
-      }
-      // rooms / toilets (p.beds/p.baths or beds,baths strings)
-      if (filters.rooms != null) {
-        const beds = Number((p.beds || "").replace(/[^0-9.]/g, ""));
-        if (!Number.isFinite(beds) || beds < filters.rooms) return false;
-      }
-      if (filters.toilets != null) {
-        const baths = Number((p.baths || "").replace(/[^0-9.]/g, ""));
-        if (!Number.isFinite(baths) || baths < filters.toilets) return false;
-      }
-      // price range
-      if (filters.minPrice != null || filters.maxPrice != null) {
-        const price = Number((p.price || "").replace(/[^0-9.]/g, ""));
-        if (
-          filters.minPrice != null &&
-          (!Number.isFinite(price) || price < filters.minPrice)
-        )
-          return false;
-        if (
-          filters.maxPrice != null &&
-          (!Number.isFinite(price) || price > filters.maxPrice)
-        )
-          return false;
-      }
-      // keywords
-      if (filters.keywords && filters.keywords.length > 0) {
+  const displayedProperties = properties
+    .filter((p) => {
+      // basic free-text search from the floating search bar
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase().trim();
         const hay = [p.title, p.address, p.house_type]
           .concat(p.facilities || [])
           .join(" ")
           .toLowerCase();
-        if (!filters.keywords.every((k) => hay.includes(k.toLowerCase())))
-          return false;
+        if (!q.split(" ").every((tok) => hay.includes(tok))) return false;
       }
-    }
 
-    return true;
-  });
+      // apply filters if present
+      if (filters) {
+        // property type - now supports multiple types
+        if (filters.propertyType && filters.propertyType.length > 0) {
+          const matchesType = filters.propertyType.some((type) =>
+            p.house_type.toLowerCase().includes(type.toLowerCase())
+          );
+          if (!matchesType) return false;
+        }
+        // min size (p.sqft might be string, try to parse numbers)
+        if (filters.minSize != null) {
+          const sqft = Number((p.sqft || "").replace(/[^0-9.]/g, ""));
+          if (!Number.isFinite(sqft) || sqft < (filters.minSize || 0))
+            return false;
+        }
+        // rooms / toilets (p.beds/p.baths or beds,baths strings)
+        if (filters.rooms != null) {
+          const beds = Number((p.beds || "").replace(/[^0-9.]/g, ""));
+          if (!Number.isFinite(beds) || beds < filters.rooms) return false;
+        }
+        if (filters.toilets != null) {
+          const baths = Number((p.baths || "").replace(/[^0-9.]/g, ""));
+          if (!Number.isFinite(baths) || baths < filters.toilets) return false;
+        }
+        // price range
+        if (filters.minPrice != null || filters.maxPrice != null) {
+          const price = Number((p.price || "").replace(/[^0-9.]/g, ""));
+          if (
+            filters.minPrice != null &&
+            (!Number.isFinite(price) || price < filters.minPrice)
+          )
+            return false;
+          if (
+            filters.maxPrice != null &&
+            (!Number.isFinite(price) || price > filters.maxPrice)
+          )
+            return false;
+        }
+        // keywords
+        if (filters.keywords && filters.keywords.length > 0) {
+          const hay = [p.title, p.address, p.house_type]
+            .concat(p.facilities || [])
+            .join(" ")
+            .toLowerCase();
+          if (!filters.keywords.every((k) => hay.includes(k.toLowerCase())))
+            return false;
+        }
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      // Apply sorting if a sort option is selected
+      if (!sortOption) return 0;
+
+      switch (sortOption.value) {
+        case "price": {
+          const priceA = Number((a.price || "").replace(/[^0-9.]/g, ""));
+          const priceB = Number((b.price || "").replace(/[^0-9.]/g, ""));
+          return sortOption.direction === "asc"
+            ? priceA - priceB
+            : priceB - priceA;
+        }
+        case "area": {
+          const areaA = Number((a.sqft || "").replace(/[^0-9.]/g, ""));
+          const areaB = Number((b.sqft || "").replace(/[^0-9.]/g, ""));
+          return sortOption.direction === "asc" ? areaA - areaB : areaB - areaA;
+        }
+        case "name": {
+          const nameA = a.title.toLowerCase();
+          const nameB = b.title.toLowerCase();
+          return sortOption.direction === "asc"
+            ? nameA.localeCompare(nameB)
+            : nameB.localeCompare(nameA);
+        }
+        default:
+          return 0;
+      }
+    });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -180,6 +211,7 @@ export default function ListingPage() {
         <ListingControls
           onFilterClick={handleFilterClick}
           filterCount={activeFilterCount}
+          onSortChange={setSortOption}
         />
         <ListingHeader
           title="Properties in Petaling Jaya"
