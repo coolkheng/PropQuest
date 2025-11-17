@@ -70,12 +70,14 @@ export default function ListingPage() {
   };
 
   // Count active filters
-  const activeFilterCount = filters ? Object.entries(filters).filter(([key, value]) => {
-    if (value === null || value === undefined) return false;
-    if (typeof value === 'string' && value === '') return false;
-    if (Array.isArray(value) && value.length === 0) return false;
-    return true;
-  }).length : 0;
+  const activeFilterCount = filters
+    ? Object.entries(filters).filter(([key, value]) => {
+        if (value === null || value === undefined) return false;
+        if (typeof value === "string" && value === "") return false;
+        if (Array.isArray(value) && value.length === 0) return false;
+        return true;
+      }).length
+    : 0;
 
   // derive the displayed properties based on searchQuery and filters
   const displayedProperties = properties.filter((p) => {
@@ -147,9 +149,11 @@ export default function ListingPage() {
 
       <div className="relative">
         <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-4xl px-4">
-          <div className={`transition-all duration-300 ease-out ${
-            showFilters ? 'shadow-lg' : ''
-          }`}>
+          <div
+            className={`transition-all duration-300 ease-out ${
+              showFilters ? "shadow-lg" : ""
+            }`}
+          >
             <FloatingSearchBar
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
@@ -173,7 +177,10 @@ export default function ListingPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6 pt-24">
-        <ListingControls onFilterClick={handleFilterClick} filterCount={activeFilterCount} />
+        <ListingControls
+          onFilterClick={handleFilterClick}
+          filterCount={activeFilterCount}
+        />
         <ListingHeader
           title="Properties in Petaling Jaya"
           resultCount={displayedProperties.length}
