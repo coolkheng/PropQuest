@@ -61,11 +61,7 @@ export function MapBackground({
         view.popup.autoOpenEnabled = false;
       } catch {}
 
-      // Address to geocode
-      const address = {
-        address: "1 Utama Shopping Centre, Petaling Jaya, Malaysia",
-      };
-
+     
       const geocodeUrl =
         "https://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer";
 
