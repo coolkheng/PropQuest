@@ -3,6 +3,7 @@
 import type React from "react";
 
 import { useState } from "react";
+import axios from "axios";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock, User, Phone } from "lucide-react";
@@ -123,13 +124,36 @@ export default function RegisterPage() {
     if (hasError) return;
 
     setIsLoading(true);
+    // Call backend registration endpoint
+    try {
+      const payload = {
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+      };
 
-    // Simulate API call
-    setTimeout(() => {
+      // Backend default uses PORT env or 5001 to avoid macOS port conflicts
+      await axios.post("http://localhost:5001/api/auth/register", payload);
+
       setIsLoading(false);
-      // On success, redirect to login or home page
+      // On success, redirect to login
       router.push("/login");
-    }, 1500);
+    } catch (err: any) {
+      setIsLoading(false);
+      const serverMessage = err?.response?.data?.error;
+      if (err?.response?.status === 409) {
+        setErrors((prev) => ({
+          ...prev,
+          email: serverMessage || "Email already in use",
+        }));
+      } else if (serverMessage) {
+        // show server validation
+        alert(serverMessage);
+      } else {
+        alert("Registration failed. Please try again.");
+      }
+    }
   };
 
   const handleGoogleSignup = () => {
@@ -147,7 +171,9 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">PropQuest</h1>
+          <h1 className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
+            PropQuest
+          </h1>
           <p className="text-gray-600 mt-2">
             Create your account to get started
           </p>
