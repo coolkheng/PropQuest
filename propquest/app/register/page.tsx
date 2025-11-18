@@ -126,12 +126,14 @@ export default function RegisterPage() {
     setIsLoading(true);
     // Call backend registration endpoint
     try {
-      const payload = {
+      const payload: any = {
         fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
       };
+
+      // No initial preferences are sent during signup — user will set them in Preferences page
 
       // Backend default uses PORT env or 5001 to avoid macOS port conflicts
       await axios.post("http://localhost:5001/api/auth/register", payload);

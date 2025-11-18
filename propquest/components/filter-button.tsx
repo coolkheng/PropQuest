@@ -10,7 +10,7 @@ interface FilterButtonProps {
   className?: string
 }
 
-export function FilterButton({ filterCount = 6, onClick, className = "" }: FilterButtonProps) {
+export function FilterButton({ filterCount = 0, onClick, className = "" }: FilterButtonProps) {
   return (
     <Button
       variant="outline"
