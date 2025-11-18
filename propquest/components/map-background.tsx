@@ -44,7 +44,6 @@ export function MapBackground({
       { css: true }
     ).then(([esriConfig, Map, MapView, locator, Graphic]) => {
       // Use your API key from .env
-
       esriConfig.apiKey = process.env.NEXT_PUBLIC_ARCGIS_API_KEY;
 
       const map = new Map({ basemap: "streets" });
