@@ -33,7 +33,7 @@ export function MapPropertyCard({ property, isHovered, onMouseEnter, onMouseLeav
   return (
     <Link href={`/property/${property._id}`} onClick={onClick}>
       <Card
-        className="w-[250px] h-[240px] bg-white shadow-lg transition-all duration-200 cursor-pointer flex-shrink-0 gap-3 py-0"
+        className="w-[250px] h-[210px] bg-white shadow-lg transition-all duration-200 cursor-pointer flex-shrink-0 gap-3 py-0"
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         style={{
@@ -63,7 +63,7 @@ export function MapPropertyCard({ property, isHovered, onMouseEnter, onMouseLeav
             {property.title.length > 50 ? `${property.title.substring(0, 50)}...` : property.title}
           </h3>
 
-          {/* Rating and Price Row */}
+          {/* price Row */}
           <div className="flex items-center justify-between mt-auto">
             <div className="flex items-center space-x-1">
             </div>

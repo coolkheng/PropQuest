@@ -43,9 +43,7 @@ export function MapBackground({
       ],
       { css: true }
     ).then(([esriConfig, Map, MapView, locator, Graphic]) => {
-      
-  // Use your API key from .env
-
+      // Use your API key from .env
       esriConfig.apiKey = process.env.NEXT_PUBLIC_ARCGIS_API_KEY;
 
       const map = new Map({ basemap: "streets" });
@@ -62,11 +60,7 @@ export function MapBackground({
         view.popup.autoOpenEnabled = false;
       } catch {}
 
-      // Address to geocode
-      const address = {
-        address: "1 Utama Shopping Centre, Petaling Jaya, Malaysia",
-      };
-
+     
       const geocodeUrl =
         "https://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer";
 
@@ -105,6 +99,11 @@ export function MapBackground({
                   beds: property.beds,
                   baths: property.baths,
                   sqft: property.sqft,
+                  url: property.url,
+                  image:
+                    Array.isArray(property.images) && property.images.length > 0
+                      ? property.images[0]
+                      : null,
                 },
               });
 
@@ -124,15 +123,31 @@ export function MapBackground({
             const hit = response.results?.find((r: any) => r.graphic);
             if (hit && hit.graphic && hit.graphic.attributes) {
               const attrs = hit.graphic.attributes;
+              const imgHtml = attrs.image
+                ? `<img src="${attrs.image}" alt="${attrs.title ?? "Property"}"
+                     style="width:110px;height:78px;object-fit:cover;border-radius:8px;margin-right:12px;" />`
+                : "";
               view.popup.open({
                 title: attrs.title || "Property",
                 content: `
                   <div style="line-height:1.4">
-                    <div><strong>Address:</strong> ${attrs.address ?? "-"}</div>
-                    <div><strong>Price:</strong> ${attrs.price ?? "-"}</div>
-                    <div><strong>Beds:</strong> ${attrs.beds ?? "-"}</div>
-                    <div><strong>Baths:</strong> ${attrs.baths ?? "-"}</div>
-                    <div><strong>Sqft:</strong> ${attrs.sqft ?? "-"}</div>
+                    <div style="display:flex;align-items:flex-start;">
+                      ${imgHtml}
+                      <div>
+                        <div><strong>Address:</strong> ${
+                          attrs.address ?? "-"
+                        }</div>
+                        <div><strong>Price:</strong> ${attrs.price ?? "-"}</div>
+                        <div><strong>Beds:</strong> ${attrs.beds ?? "-"}</div>
+                        <div><strong>Baths:</strong> ${attrs.baths ?? "-"}</div>
+                        <div><strong>Sqft:</strong> ${attrs.sqft ?? "-"}</div>
+                        ${
+                          attrs.url
+                            ? `<div style="margin-top:6px;"><a href="${attrs.url}" target="_blank" rel="noopener noreferrer">View listing</a></div>`
+                            : ""
+                        }
+                      </div>
+                    </div>
                   </div>
                 `,
                 location: hit.graphic.geometry,

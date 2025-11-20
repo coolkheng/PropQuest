@@ -35,7 +35,7 @@ export function PropertyCardsCarousel({
 }: PropertyCardsCarouselProps) {
   return (
     <div className="absolute bottom-4 left-4 right-4">
-      <div className="flex space-x-3 overflow-x-auto pb-2">
+      <div className="flex space-x-2 overflow-x-auto pb-2">
         {properties.map((property) => (
           <MapPropertyCard
             key={property._id}
