@@ -7,9 +7,10 @@ import { FloatingSearchBar } from "@/components/floating-search-bar";
 import { ListingControls } from "@/components/listing-controls";
 import { ListingHeader } from "@/components/listing-header";
 import { PropertyGrid } from "@/components/property-grid";
-import { LoadMoreSection } from "@/components/load-more-section";
 import { FiltersModal, Filters } from "@/components/filters-modal";
 import { SortOption } from "@/components/sort-button";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import axios from "axios";
 
 // ✅ Locally define the Property interface
@@ -38,6 +39,8 @@ export default function ListingPage() {
   const [filters, setFilters] = useState<Filters | null>(null);
   const [sortOption, setSortOption] = useState<SortOption | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(60);
   const router = useRouter();
 
   useEffect(() => {
@@ -66,10 +69,15 @@ export default function ListingPage() {
     setShowFilters(true);
   };
 
-  const handleLoadMore = () => {
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 1000);
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  // Reset to page 1 when filters or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filters, sortOption]);
 
   // Count active filters
   const activeFilterCount = filters
@@ -82,7 +90,7 @@ export default function ListingPage() {
     : 0;
 
   // derive the displayed properties based on searchQuery and filters
-  const displayedProperties = properties
+  const filteredAndSortedProperties = properties
     .filter((p) => {
       // basic free-text search from the floating search bar
       if (searchQuery) {
@@ -174,6 +182,53 @@ export default function ListingPage() {
       }
     });
 
+  // Calculate pagination
+  const totalResults = filteredAndSortedProperties.length;
+  const totalPages = Math.ceil(totalResults / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const displayedProperties = filteredAndSortedProperties.slice(
+    startIndex,
+    endIndex
+  );
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxPagesToShow = 7;
+
+    if (totalPages <= maxPagesToShow) {
+      // Show all pages if total is small
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Always show first page
+      pages.push(1);
+
+      if (currentPage > 3) {
+        pages.push("...");
+      }
+
+      // Show pages around current page
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (currentPage < totalPages - 2) {
+        pages.push("...");
+      }
+
+      // Always show last page
+      pages.push(totalPages);
+    }
+
+    return pages;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <TopBar />
@@ -215,13 +270,71 @@ export default function ListingPage() {
         />
         <ListingHeader
           title="Properties in Petaling Jaya"
-          resultCount={displayedProperties.length}
+          resultCount={totalResults}
         />
         <PropertyGrid
           properties={displayedProperties}
           onPropertyClick={(id) => handlePropertyClick(id)}
         />
-        <LoadMoreSection onLoadMore={handleLoadMore} isLoading={isLoading} />
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-8 mb-6">
+            {/* Previous Button */}
+            <Button
+              variant="outline"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+
+            {/* Page Numbers */}
+            <div className="flex items-center gap-1">
+              {getPageNumbers().map((page, index) => (
+                <div key={index}>
+                  {page === "..." ? (
+                    <span className="px-3 py-2 text-gray-400">...</span>
+                  ) : (
+                    <Button
+                      variant={currentPage === page ? "default" : "outline"}
+                      onClick={() => handlePageChange(page as number)}
+                      className={`px-3 py-2 min-w-[40px] ${
+                        currentPage === page
+                          ? "bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 text-white"
+                          : ""
+                      }`}
+                    >
+                      {page}
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Next Button */}
+            <Button
+              variant="outline"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-2"
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* Results Info */}
+        {displayedProperties.length > 0 && (
+          <div className="text-center py-4 text-sm text-gray-500">
+            Showing {startIndex + 1}-{Math.min(endIndex, totalResults)} of{" "}
+            {totalResults} propert
+            {totalResults === 1 ? "y" : "ies"}
+          </div>
+        )}
       </div>
     </div>
   );
