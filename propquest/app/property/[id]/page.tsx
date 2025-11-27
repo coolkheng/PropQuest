@@ -91,6 +91,8 @@ interface Property {
   facilities: string[];
 }
 
+
+
 export default function PropertyDetailPage({
   params,
 }: {

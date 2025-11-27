@@ -1,5 +1,6 @@
 import { ImageGallery } from "./image-gallery"
 import { ListingOverview } from "./listing-overview"
+import { PriceHistory } from "./price-history"
 import { PropertyDetails } from "./property-details"
 import { WhatsNearby } from "./whats-nearby"
 
@@ -23,7 +24,17 @@ const amenities = {
       { name: "Subway Elmina Lifestyle", time: "7 mins", distance: "600 m" },
     ],
   }
-  
+
+  const priceHistory = [
+      { date: "Jan 2024", price: 1800 },
+      { date: "Feb 2024", price: 1850 },
+      { date: "Mar 2024", price: 1900 },
+      { date: "Apr 2024", price: 1950 },
+      { date: "May 2024", price: 2000 },
+      { date: "Jun 2024", price: 2050 },
+      { date: "Jul 2024", price: 2100 },
+    ]
+
 interface PropertyMainContentProps {
   propertyData: {
   _id: string;
@@ -74,6 +85,11 @@ export function PropertyMainContent({ propertyData }: PropertyMainContentProps) 
       />
 
       <WhatsNearby amenities={amenities} />
+
+      {priceHistory && priceHistory.length > 0 && (
+        <PriceHistory priceHistory={priceHistory} />
+      )}
+
     </div>
   )
 }

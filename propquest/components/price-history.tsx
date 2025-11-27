@@ -1,0 +1,194 @@
+"use client";
+
+import { useEffect, useId, useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { TrendingUp, TrendingDown } from "lucide-react";
+
+interface PriceHistoryProps {
+  priceHistory: Array<{
+    date: string;
+    price: number;
+  }>;
+}
+
+export function PriceHistory({ priceHistory }: PriceHistoryProps) {
+  // Avoid potential SSR/hydration issues with Recharts by rendering after mount
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  // Early no-data UI
+  const hasData = Array.isArray(priceHistory) && priceHistory.length > 0;
+
+  // Calculate price change
+  const firstPrice = hasData ? priceHistory[0]?.price ?? 0 : 0;
+  const lastPrice = hasData
+    ? priceHistory[priceHistory.length - 1]?.price ?? 0
+    : 0;
+  const priceChange = lastPrice - firstPrice;
+  const priceChangePercent: string =
+    firstPrice > 0 ? ((priceChange / firstPrice) * 100).toFixed(1) : "0.0";
+  const isPriceIncreasing = priceChange >= 0;
+
+  // Format currency
+  const formatCurrency = (value: number) => {
+    return `RM ${value.toLocaleString()}`;
+  };
+
+  // Custom tooltip
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
+          <p className="text-sm font-medium text-gray-900">
+            {payload[0].payload.date}
+          </p>
+          <p className="text-sm font-semibold bg-clip-text text-transparent bg-blue-gradient">
+            {formatCurrency(payload[0].value)}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Unique id for gradient to avoid collisions across multiple charts
+  const gradId = `priceGradient-${useId()}`;
+
+  if (!mounted) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl bg-clip-text text-transparent bg-blue-gradient">
+            Price History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px] w-full animate-pulse rounded-lg bg-gray-100" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!hasData) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl bg-clip-text text-transparent bg-blue-gradient">
+            Price History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-gray-600">
+            No price history available.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl bg-clip-text text-transparent bg-blue-gradient">
+            Price History
+          </CardTitle>
+          <div className="flex items-center space-x-2">
+            {isPriceIncreasing ? (
+              <TrendingUp className="h-5 w-5 text-green-600" />
+            ) : (
+              <TrendingDown className="h-5 w-5 text-red-600" />
+            )}
+            <span
+              className={`text-sm font-semibold ${
+                isPriceIncreasing ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              {isPriceIncreasing ? "+" : ""}
+              {priceChangePercent}%
+            </span>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {/* Price Summary */}
+          <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div>
+              <p className="text-xs text-gray-600">Starting Price</p>
+              <p className="text-lg font-semibold text-gray-900">
+                {formatCurrency(firstPrice)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600">Current Price</p>
+              <p className="text-lg font-semibold bg-clip-text text-transparent bg-blue-gradient">
+                {formatCurrency(lastPrice)}
+              </p>
+            </div>
+          </div>
+
+          {/* Line Chart */}
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={priceHistory}
+                margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: "#6b7280", fontSize: 12 }}
+                  tickLine={{ stroke: "#e5e7eb" }}
+                />
+                <YAxis
+                  tick={{ fill: "#6b7280", fontSize: 12 }}
+                  tickLine={{ stroke: "#e5e7eb" }}
+                  tickFormatter={(value: number) => `${value / 1000}k`}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Line
+                  type="monotone"
+                  dataKey="price"
+                  stroke={`url(#${gradId})`}
+                  strokeWidth={3}
+                  dot={{ fill: "#3b82f6", r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+                <defs>
+                  <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#3b82f6" />
+                    <stop offset="50%" stopColor="#6366f1" />
+                    <stop offset="100%" stopColor="#8b5cf6" />
+                  </linearGradient>
+                </defs>
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Price Change Info */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-600">Price change over time:</span>
+            <span
+              className={`font-semibold ${
+                isPriceIncreasing ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              {isPriceIncreasing ? "+" : ""}
+              {formatCurrency(Math.abs(priceChange))}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
