@@ -37,7 +37,7 @@ export default function PreferencesPage() {
     "Locations",
     "Budget",
     "Property Types",
-    "Keywords",
+    "Facilities",
     "Size",
     "Finish",
   ];
@@ -317,10 +317,10 @@ export default function PreferencesPage() {
                     {/* Step 4: Keywords */}
                     <div className="space-y-4">
                       <h2 className="text-lg font-semibold text-gray-900">
-                        Keywords
+                        Facilities
                       </h2>
                       <p className="text-sm text-gray-600">
-                        Optional features you'd like to include (comma
+                        Optional facilites you'd like to include (comma
                         separated).
                       </p>
                       <input

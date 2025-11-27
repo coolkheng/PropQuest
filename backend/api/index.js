@@ -45,18 +45,962 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 app.get("/api/properties", async (req, res) => {
   try {
     const db = await connectToDatabase();
-    const properties = await db.collection("property2").find({}).toArray();
-    res.json(properties);
+
+    // Get pagination parameters from query string
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 60;
+    const skip = (page - 1) * limit;
+
+    // Build MongoDB query from filters
+    const query = {};
+
+    // Search query (keywords)
+    if (req.query.search) {
+      const searchRegex = new RegExp(req.query.search, "i");
+      query.$or = [
+        { title: searchRegex },
+        { address: searchRegex },
+        { house_type: searchRegex },
+        { facilities: { $in: [searchRegex] } },
+      ];
+    }
+
+    // Property type filter (can be multiple, comma-separated)
+    if (req.query.propertyType) {
+      const types = req.query.propertyType.split(",");
+      query.house_type = { $in: types.map((t) => new RegExp(t, "i")) };
+    }
+
+    // Price range
+    if (req.query.minPrice || req.query.maxPrice) {
+      query.$and = query.$and || [];
+      if (req.query.minPrice) {
+        query.$and.push({
+          $expr: {
+            $gte: [
+              { $toDouble: { $ifNull: ["$price", "0"] } },
+              parseFloat(req.query.minPrice),
+            ],
+          },
+        });
+      }
+      if (req.query.maxPrice) {
+        query.$and.push({
+          $expr: {
+            $lte: [
+              { $toDouble: { $ifNull: ["$price", "0"] } },
+              parseFloat(req.query.maxPrice),
+            ],
+          },
+        });
+      }
+    }
+
+    // Rooms filter
+    if (req.query.rooms) {
+      query.$expr = query.$expr || {};
+      const roomsQuery = {
+        $gte: [
+          { $toDouble: { $ifNull: ["$beds", "0"] } },
+          parseInt(req.query.rooms),
+        ],
+      };
+      if (query.$and) {
+        query.$and.push({ $expr: roomsQuery });
+      } else {
+        query.$expr = roomsQuery;
+      }
+    }
+
+    // Bathrooms filter
+    if (req.query.toilets) {
+      const toiletsQuery = {
+        $gte: [
+          { $toDouble: { $ifNull: ["$baths", "0"] } },
+          parseInt(req.query.toilets),
+        ],
+      };
+      query.$and = query.$and || [];
+      query.$and.push({ $expr: toiletsQuery });
+    }
+
+    // Min size filter
+    if (req.query.minSize) {
+      const sizeQuery = {
+        $gte: [
+          { $toDouble: { $ifNull: ["$sqft", "0"] } },
+          parseFloat(req.query.minSize),
+        ],
+      };
+      query.$and = query.$and || [];
+      query.$and.push({ $expr: sizeQuery });
+    }
+
+    // Build sort object
+    let sortStage = {};
+    if (req.query.sortBy) {
+      const direction = req.query.sortDirection === "desc" ? -1 : 1;
+
+      switch (req.query.sortBy) {
+        case "price":
+          sortStage = { priceNumeric: direction };
+          break;
+        case "area":
+          sortStage = { sqftNumeric: direction };
+          break;
+        case "name":
+          sortStage = { title: direction };
+          break;
+        default:
+          sortStage = { _id: -1 };
+      }
+    } else {
+      sortStage = { _id: -1 }; // Default sort by newest
+    }
+
+    // Get total count for pagination info
+    const totalCount = await db
+      .collection("properties19nov")
+      .countDocuments(query);
+
+    // Use aggregation pipeline to handle type conversion for sorting
+    const pipeline = [
+      { $match: query },
+      {
+        $addFields: {
+          priceNumeric: {
+            $convert: {
+              input: {
+                $cond: {
+                  if: { $eq: [{ $type: "$price" }, "string"] },
+                  then: {
+                    $replaceAll: {
+                      input: {
+                        $replaceAll: {
+                          input: {
+                            $replaceAll: {
+                              input: { $ifNull: ["$price", "0"] },
+                              find: "RM",
+                              replacement: "",
+                            },
+                          },
+                          find: ",",
+                          replacement: "",
+                        },
+                      },
+                      find: " ",
+                      replacement: "",
+                    },
+                  },
+                  else: "$price",
+                },
+              },
+              to: "double",
+              onError: 0,
+              onNull: 0,
+            },
+          },
+          sqftNumeric: {
+            $convert: {
+              input: {
+                $cond: {
+                  if: { $eq: [{ $type: "$sqft" }, "string"] },
+                  then: {
+                    $replaceAll: {
+                      input: {
+                        $replaceAll: {
+                          input: {
+                            $replaceAll: {
+                              input: { $ifNull: ["$sqft", "0"] },
+                              find: "sq.ft.",
+                              replacement: "",
+                            },
+                          },
+                          find: ",",
+                          replacement: "",
+                        },
+                      },
+                      find: " ",
+                      replacement: "",
+                    },
+                  },
+                  else: "$sqft",
+                },
+              },
+              to: "double",
+              onError: 0,
+              onNull: 0,
+            },
+          },
+        },
+      },
+      { $sort: sortStage },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $project: {
+          priceNumeric: 0,
+          sqftNumeric: 0,
+        },
+      },
+    ];
+
+    // Fetch paginated properties using aggregation
+    const properties = await db
+      .collection("properties19nov")
+      .aggregate(pipeline)
+      .toArray();
+
+    res.json({
+      properties,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalCount / limit),
+        totalCount,
+        pageSize: limit,
+        hasMore: skip + properties.length < totalCount,
+      },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to fetch properties" });
   }
 });
 
+// --- PERSONALIZED PROPERTIES (Module 4): Get top 100 ranked properties based on user preferences ---
+app.get("/api/properties/personalized", async (req, res) => {
+  const token = req.cookies?.token;
+  if (!token) return res.status(401).json({ error: "Authentication required" });
+
+  const secret = process.env.JWT_SECRET || "dev-secret";
+  try {
+    const decoded = jwt.verify(token, secret);
+    const { userId } = decoded;
+
+    const db = await connectToDatabase();
+
+    // Get user preferences
+    const user = await db
+      .collection("users")
+      .findOne({ _id: new ObjectId(userId) });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const prefs = user.preferences || {};
+
+    console.log(
+      "User preferences for personalized properties:",
+      JSON.stringify(prefs, null, 2)
+    );
+
+    // Normalize field names for compatibility
+    const minSize = prefs.min_size_sqft || prefs.ideal_size_sqft;
+    const normalizedPrefs = {
+      ...prefs,
+      min_size_sqft: minSize,
+    };
+
+    console.log(
+      "Normalized preferences:",
+      JSON.stringify(normalizedPrefs, null, 2)
+    );
+
+    // Check if user has set any preferences
+    const hasPreferences =
+      (normalizedPrefs.preferred_locations &&
+        normalizedPrefs.preferred_locations.length > 0) ||
+      (normalizedPrefs.budget_range &&
+        (normalizedPrefs.budget_range.min != null ||
+          normalizedPrefs.budget_range.max != null)) ||
+      (normalizedPrefs.preferred_types &&
+        normalizedPrefs.preferred_types.length > 0) ||
+      (normalizedPrefs.keywords && normalizedPrefs.keywords.length > 0) ||
+      normalizedPrefs.min_size_sqft != null ||
+      normalizedPrefs.rooms != null ||
+      normalizedPrefs.toilets != null;
+
+    console.log("Has preferences:", hasPreferences);
+
+    if (!hasPreferences) {
+      return res.json({
+        properties: [],
+        pagination: {
+          currentPage: 1,
+          totalPages: 0,
+          totalCount: 0,
+          pageSize: 60,
+          hasMore: false,
+        },
+      });
+    }
+
+    // Get pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 60;
+    const skip = (page - 1) * limit;
+
+    // Build aggregation pipeline for scoring
+    const pipeline = [
+      {
+        $addFields: {
+          priceNumeric: {
+            $convert: {
+              input: {
+                $cond: {
+                  if: { $eq: [{ $type: "$price" }, "string"] },
+                  then: {
+                    $replaceAll: {
+                      input: {
+                        $replaceAll: {
+                          input: {
+                            $replaceAll: {
+                              input: { $ifNull: ["$price", "0"] },
+                              find: "RM",
+                              replacement: "",
+                            },
+                          },
+                          find: ",",
+                          replacement: "",
+                        },
+                      },
+                      find: " ",
+                      replacement: "",
+                    },
+                  },
+                  else: "$price",
+                },
+              },
+              to: "double",
+              onError: 0,
+              onNull: 0,
+            },
+          },
+          sqftNumeric: {
+            $convert: {
+              input: {
+                $cond: {
+                  if: { $eq: [{ $type: "$sqft" }, "string"] },
+                  then: {
+                    $replaceAll: {
+                      input: {
+                        $replaceAll: {
+                          input: {
+                            $replaceAll: {
+                              input: { $ifNull: ["$sqft", "0"] },
+                              find: "sq.ft.",
+                              replacement: "",
+                            },
+                          },
+                          find: ",",
+                          replacement: "",
+                        },
+                      },
+                      find: " ",
+                      replacement: "",
+                    },
+                  },
+                  else: "$sqft",
+                },
+              },
+              to: "double",
+              onError: 0,
+              onNull: 0,
+            },
+          },
+          bedsNumeric: {
+            $convert: {
+              input: "$beds",
+              to: "double",
+              onError: 0,
+              onNull: 0,
+            },
+          },
+          bathsNumeric: {
+            $convert: {
+              input: "$baths",
+              to: "double",
+              onError: 0,
+              onNull: 0,
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          score: {
+            $add: [
+              // Location match score (0-40 points) - Exact match with word boundaries
+              {
+                $cond: {
+                  if:
+                    normalizedPrefs.preferred_locations &&
+                    normalizedPrefs.preferred_locations.length > 0,
+                  then: {
+                    $multiply: [
+                      {
+                        $cond: {
+                          if: {
+                            $gt: [
+                              {
+                                $size: {
+                                  $filter: {
+                                    input: normalizedPrefs.preferred_locations,
+                                    as: "loc",
+                                    cond: {
+                                      $regexMatch: {
+                                        input: { $toLower: "$address" },
+                                        regex: {
+                                          $concat: [
+                                            "(^|\\s|,)",
+                                            { $toLower: "$$loc" },
+                                            "(\\s|,|$)",
+                                          ],
+                                        },
+                                        options: "i",
+                                      },
+                                    },
+                                  },
+                                },
+                              },
+                              0,
+                            ],
+                          },
+                          then: 1,
+                          else: 0,
+                        },
+                      },
+                      40,
+                    ],
+                  },
+                  else: 0,
+                },
+              },
+              // Price match score (0-30 points) - IMPROVED: Continuous scoring with smooth decay
+              {
+                $cond: {
+                  if:
+                    normalizedPrefs.budget_range &&
+                    (normalizedPrefs.budget_range.min != null ||
+                      normalizedPrefs.budget_range.max != null),
+                  then: {
+                    $let: {
+                      vars: {
+                        minBudget: {
+                          $ifNull: [normalizedPrefs.budget_range.min, 0],
+                        },
+                        maxBudget: {
+                          $ifNull: [
+                            normalizedPrefs.budget_range.max,
+                            999999999,
+                          ],
+                        },
+                        price: "$priceNumeric",
+                      },
+                      in: {
+                        $cond: {
+                          // Within range - full 30 points
+                          if: {
+                            $and: [
+                              { $gte: ["$$price", "$$minBudget"] },
+                              { $lte: ["$$price", "$$maxBudget"] },
+                            ],
+                          },
+                          then: 30,
+                          else: {
+                            // Outside range - smooth decay based on percentage difference
+                            $let: {
+                              vars: {
+                                percentDiff: {
+                                  $cond: {
+                                    if: { $lt: ["$$price", "$$minBudget"] },
+                                    then: {
+                                      $divide: [
+                                        {
+                                          $subtract: ["$$minBudget", "$$price"],
+                                        },
+                                        "$$minBudget",
+                                      ],
+                                    },
+                                    else: {
+                                      $divide: [
+                                        {
+                                          $subtract: ["$$price", "$$maxBudget"],
+                                        },
+                                        "$$maxBudget",
+                                      ],
+                                    },
+                                  },
+                                },
+                              },
+                              in: {
+                                $max: [
+                                  0,
+                                  {
+                                    $subtract: [
+                                      30,
+                                      { $multiply: ["$$percentDiff", 300] },
+                                    ],
+                                  },
+                                ],
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                  else: 0,
+                },
+              },
+              // Property type match (0-15 points) - IMPROVED: Similarity matrix for related types
+              {
+                $cond: {
+                  if:
+                    normalizedPrefs.preferred_types &&
+                    normalizedPrefs.preferred_types.length > 0,
+                  then: {
+                    $max: {
+                      $map: {
+                        input: normalizedPrefs.preferred_types,
+                        as: "prefType",
+                        in: {
+                          $let: {
+                            vars: {
+                              prefTypeLower: { $toLower: "$$prefType" },
+                              houseTypeLower: { $toLower: "$house_type" },
+                            },
+                            in: {
+                              $cond: [
+                                // Exact match - 15 points
+                                {
+                                  $regexMatch: {
+                                    input: "$$houseTypeLower",
+                                    regex: "$$prefTypeLower",
+                                    options: "i",
+                                  },
+                                },
+                                15,
+                                // Similar types - partial points
+                                {
+                                  $switch: {
+                                    branches: [
+                                      // Condominium → Service Residence
+                                      {
+                                        case: {
+                                          $and: [
+                                            {
+                                              $regexMatch: {
+                                                input: "$$prefTypeLower",
+                                                regex: "condominium",
+                                                options: "i",
+                                              },
+                                            },
+                                            {
+                                              $regexMatch: {
+                                                input: "$$houseTypeLower",
+                                                regex: "service residence",
+                                                options: "i",
+                                              },
+                                            },
+                                          ],
+                                        },
+                                        then: 12,
+                                      },
+                                      // Condominium → Apartment
+                                      {
+                                        case: {
+                                          $and: [
+                                            {
+                                              $regexMatch: {
+                                                input: "$$prefTypeLower",
+                                                regex: "condominium",
+                                                options: "i",
+                                              },
+                                            },
+                                            {
+                                              $regexMatch: {
+                                                input: "$$houseTypeLower",
+                                                regex: "apartment",
+                                                options: "i",
+                                              },
+                                            },
+                                          ],
+                                        },
+                                        then: 10,
+                                      },
+                                      // Service Residence → Condominium
+                                      {
+                                        case: {
+                                          $and: [
+                                            {
+                                              $regexMatch: {
+                                                input: "$$prefTypeLower",
+                                                regex: "service residence",
+                                                options: "i",
+                                              },
+                                            },
+                                            {
+                                              $regexMatch: {
+                                                input: "$$houseTypeLower",
+                                                regex: "condominium",
+                                                options: "i",
+                                              },
+                                            },
+                                          ],
+                                        },
+                                        then: 12,
+                                      },
+                                      // Apartment → Condominium
+                                      {
+                                        case: {
+                                          $and: [
+                                            {
+                                              $regexMatch: {
+                                                input: "$$prefTypeLower",
+                                                regex: "apartment",
+                                                options: "i",
+                                              },
+                                            },
+                                            {
+                                              $regexMatch: {
+                                                input: "$$houseTypeLower",
+                                                regex: "condominium",
+                                                options: "i",
+                                              },
+                                            },
+                                          ],
+                                        },
+                                        then: 10,
+                                      },
+                                      // Terrace → Townhouse
+                                      {
+                                        case: {
+                                          $and: [
+                                            {
+                                              $regexMatch: {
+                                                input: "$$prefTypeLower",
+                                                regex: "terrace",
+                                                options: "i",
+                                              },
+                                            },
+                                            {
+                                              $regexMatch: {
+                                                input: "$$houseTypeLower",
+                                                regex: "townhouse",
+                                                options: "i",
+                                              },
+                                            },
+                                          ],
+                                        },
+                                        then: 12,
+                                      },
+                                      // Townhouse → Terrace
+                                      {
+                                        case: {
+                                          $and: [
+                                            {
+                                              $regexMatch: {
+                                                input: "$$prefTypeLower",
+                                                regex: "townhouse",
+                                                options: "i",
+                                              },
+                                            },
+                                            {
+                                              $regexMatch: {
+                                                input: "$$houseTypeLower",
+                                                regex: "terrace",
+                                                options: "i",
+                                              },
+                                            },
+                                          ],
+                                        },
+                                        then: 12,
+                                      },
+                                      // Semi-D → Bungalow
+                                      {
+                                        case: {
+                                          $and: [
+                                            {
+                                              $regexMatch: {
+                                                input: "$$prefTypeLower",
+                                                regex:
+                                                  "semi-detached|semi detached",
+                                                options: "i",
+                                              },
+                                            },
+                                            {
+                                              $regexMatch: {
+                                                input: "$$houseTypeLower",
+                                                regex: "bungalow",
+                                                options: "i",
+                                              },
+                                            },
+                                          ],
+                                        },
+                                        then: 8,
+                                      },
+                                      // Bungalow → Semi-D
+                                      {
+                                        case: {
+                                          $and: [
+                                            {
+                                              $regexMatch: {
+                                                input: "$$prefTypeLower",
+                                                regex: "bungalow",
+                                                options: "i",
+                                              },
+                                            },
+                                            {
+                                              $regexMatch: {
+                                                input: "$$houseTypeLower",
+                                                regex:
+                                                  "semi-detached|semi detached",
+                                                options: "i",
+                                              },
+                                            },
+                                          ],
+                                        },
+                                        then: 8,
+                                      },
+                                    ],
+                                    default: 0,
+                                  },
+                                },
+                              ],
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                  else: 0,
+                },
+              },
+              // Size match (0-10 points) - IMPROVED: Smooth decay based on percentage difference
+              {
+                $cond: {
+                  if: normalizedPrefs.min_size_sqft,
+                  then: {
+                    $let: {
+                      vars: {
+                        minSize: normalizedPrefs.min_size_sqft,
+                        actualSize: "$sqftNumeric",
+                      },
+                      in: {
+                        $cond: {
+                          // Meets or exceeds requirement - full 10 points
+                          if: { $gte: ["$$actualSize", "$$minSize"] },
+                          then: 10,
+                          // Below requirement - smooth decay
+                          else: {
+                            $let: {
+                              vars: {
+                                percentDiff: {
+                                  $divide: [
+                                    {
+                                      $subtract: ["$$minSize", "$$actualSize"],
+                                    },
+                                    "$$minSize",
+                                  ],
+                                },
+                              },
+                              in: {
+                                $max: [
+                                  0,
+                                  {
+                                    $subtract: [
+                                      10,
+                                      { $multiply: ["$$percentDiff", 100] },
+                                    ],
+                                  },
+                                ],
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                  else: 0,
+                },
+              },
+              // Rooms match (0-3 points) - IMPROVED: Distance-based scoring
+              {
+                $cond: {
+                  if: normalizedPrefs.rooms != null,
+                  then: {
+                    $max: [
+                      0,
+                      {
+                        $subtract: [
+                          3,
+                          {
+                            $abs: {
+                              $subtract: [
+                                "$bedsNumeric",
+                                normalizedPrefs.rooms,
+                              ],
+                            },
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                  else: 0,
+                },
+              },
+              // Bathrooms match (0-2 points) - IMPROVED: Distance-based scoring
+              {
+                $cond: {
+                  if: normalizedPrefs.toilets != null,
+                  then: {
+                    $max: [
+                      0,
+                      {
+                        $subtract: [
+                          2,
+                          {
+                            $abs: {
+                              $subtract: [
+                                "$bathsNumeric",
+                                normalizedPrefs.toilets,
+                              ],
+                            },
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                  else: 0,
+                },
+              },
+              // Keywords match (0-5 points) - IMPROVED: Proportional scoring based on match ratio
+              {
+                $cond: {
+                  if:
+                    normalizedPrefs.keywords &&
+                    normalizedPrefs.keywords.length > 0,
+                  then: {
+                    $let: {
+                      vars: {
+                        matchedKeywords: {
+                          $size: {
+                            $filter: {
+                              input: normalizedPrefs.keywords,
+                              as: "keyword",
+                              cond: {
+                                $or: [
+                                  {
+                                    $regexMatch: {
+                                      input: "$title",
+                                      regex: "$$keyword",
+                                      options: "i",
+                                    },
+                                  },
+                                  {
+                                    $regexMatch: {
+                                      input: "$address",
+                                      regex: "$$keyword",
+                                      options: "i",
+                                    },
+                                  },
+                                  {
+                                    $in: [
+                                      {
+                                        $toLower: "$$keyword",
+                                      },
+                                      {
+                                        $map: {
+                                          input: {
+                                            $ifNull: ["$facilities", []],
+                                          },
+                                          as: "facility",
+                                          in: { $toLower: "$$facility" },
+                                        },
+                                      },
+                                    ],
+                                  },
+                                ],
+                              },
+                            },
+                          },
+                        },
+                        totalKeywords: normalizedPrefs.keywords.length,
+                      },
+                      in: {
+                        $multiply: [
+                          {
+                            $divide: ["$$matchedKeywords", "$$totalKeywords"],
+                          },
+                          5,
+                        ],
+                      },
+                    },
+                  },
+                  else: 0,
+                },
+              },
+            ],
+          },
+        },
+      },
+      // Only show properties with score > 0
+      { $match: { score: { $gt: 0 } } },
+      // Sort by score descending
+      { $sort: { score: -1 } },
+      // Limit to top 100 before pagination
+      { $limit: 100 },
+    ];
+
+    // Get total count of scored properties
+    console.log("Running aggregation pipeline...");
+    const scoredProperties = await db
+      .collection("properties19nov")
+      .aggregate(pipeline)
+      .toArray();
+    console.log(`Found ${scoredProperties.length} properties with score > 0`);
+
+    const totalCount = scoredProperties.length;
+
+    // Apply pagination to the scored results
+    const paginatedProperties = scoredProperties.slice(skip, skip + limit);
+
+    // Remove temporary numeric fields and score from response
+    const cleanedProperties = paginatedProperties.map((prop) => {
+      const {
+        priceNumeric,
+        sqftNumeric,
+        bedsNumeric,
+        bathsNumeric,
+        score,
+        ...rest
+      } = prop;
+      return rest;
+    });
+
+    console.log(
+      `Returning ${cleanedProperties.length} properties for page ${page}`
+    );
+
+    res.json({
+      properties: cleanedProperties,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalCount / limit),
+        totalCount,
+        pageSize: limit,
+        hasMore: skip + cleanedProperties.length < totalCount,
+      },
+    });
+  } catch (error) {
+    console.error("Personalized properties error:", error);
+    res.status(500).json({ error: "Failed to fetch personalized properties" });
+  }
+});
+
 app.get("/api/properties/:id", async (req, res) => {
   try {
     const db = await connectToDatabase();
-    const property = await db.collection("property2").findOne(
+    const property = await db.collection("properties19nov").findOne(
       { _id: new ObjectId(req.params.id) },
       {
         projection: {
@@ -240,7 +1184,7 @@ app.post("/api/properties/search", async (req, res) => {
     });
     console.log("Aggregation Pipeline:", JSON.stringify(pipeline, null, 2));
     const results = await db
-      .collection("properties")
+      .collection("properties19nov")
       .aggregate(pipeline)
       .toArray();
     res.json(results);
