@@ -21,9 +21,10 @@ interface ChatMessage {
 interface AiChatPanelProps {
   properties: Property[];
   setProperties: React.Dispatch<React.SetStateAction<Property[]>>;
+  setIsAISearch: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
+export function AiChatPanel({ properties, setProperties, setIsAISearch }: AiChatPanelProps) {
   const [aiRequest, setAiRequest] = useState("");
   const [isAiTyping, setIsAiTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -134,6 +135,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
 
           const properties = response.data;
           setProperties(properties); // Update the properties state with the API response
+          setIsAISearch(true); // Mark as AI search results
 
           const aiResponse: ChatMessage = {
             id: (Date.now() + 1).toString(),

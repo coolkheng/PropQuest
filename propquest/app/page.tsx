@@ -27,6 +27,7 @@ export interface Property {
 
 export default function HomePage() {
   const [properties, setProperties] = useState<Property[]>([]); // Lifted state
+  const [isAISearch, setIsAISearch] = useState(false); // Track if properties are from AI search
   const [searchQuery, setSearchQuery] = useState("");
   const [hoveredProperty, setHoveredProperty] = useState<string | null>(null);
 
@@ -36,6 +37,7 @@ export default function HomePage() {
         const res = await axios.get("http://localhost:5001/api/properties");
         const data: Property[] = res.data;
         setProperties(data);
+        setIsAISearch(false); // Reset AI search flag for initial load
       } catch (error) {
         console.error("Error fetching properties:", error);
       }
@@ -70,11 +72,16 @@ export default function HomePage() {
             hoveredProperty={hoveredProperty}
             onPropertyHover={setHoveredProperty}
             onPropertyClick={handlePropertyClick}
+            isAISearch={isAISearch}
           />
         </div>
 
         <div className="w-[40%] h-full">
-          <AiChatPanel properties={properties} setProperties={setProperties} />
+          <AiChatPanel 
+            properties={properties} 
+            setProperties={setProperties} 
+            setIsAISearch={setIsAISearch}
+          />
         </div>
       </div>
     </div>

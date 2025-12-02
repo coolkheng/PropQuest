@@ -4,6 +4,7 @@ import { loadModules } from "esri-loader";
 interface MapBackgroundProps {
   hoveredProperty: string | null;
   Property: Property[];
+  isAISearch?: boolean; // true when showing AI search results, false/undefined for initial load
 }
 
 interface Property {
@@ -27,6 +28,7 @@ interface Property {
 export function MapBackground({
   hoveredProperty,
   Property,
+  isAISearch = false,
 }: MapBackgroundProps) {
   const mapRef = useRef(null);
 
@@ -60,13 +62,15 @@ export function MapBackground({
         view.popup.autoOpenEnabled = false;
       } catch {}
 
-     
       const geocodeUrl =
         "https://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer";
 
       // Use the geocoder
+      // Limit to 50 properties for initial map loading, but show all for AI search results
+      const propertiesToGeocode = isAISearch ? Property : Property.slice(0, 50);
+
       // Loop through properties
-      Property.forEach((property) => {
+      propertiesToGeocode.forEach((property) => {
         locator
           .addressToLocations(geocodeUrl, {
             address: { address: property.address },
