@@ -4,6 +4,7 @@ const dotenv = require("dotenv");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { OpenAI } = require("openai");
+const fetch = require("node-fetch");
 
 // Load environment variables
 dotenv.config();
@@ -41,87 +42,6 @@ async function connectToDatabase() {
 }
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// ArcGIS token cache
-let arcgisToken = null;
-let tokenExpiry = null;
-
-// Function to generate ArcGIS token
-async function getArcGISToken() {
-  // Check if we have a valid cached token
-  if (arcgisToken && tokenExpiry && new Date() < tokenExpiry) {
-    return arcgisToken;
-  }
-
-  try {
-    const response = await fetch('https://www.arcgis.com/sharing/rest/generateToken', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        username: process.env.ARCGIS_USERNAME,
-        password: process.env.ARCGIS_PASSWORD,
-        referer: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
-        expiration: '120', // 24 hours in minutes
-        f: 'json'
-      })
-    });
-
-    const data = await response.json();
-    
-    if (data.token) {
-      arcgisToken = data.token;
-      // Set expiry to 23 hours from now (1 hour buffer)
-      tokenExpiry = new Date(Date.now() + (23 * 60 * 60 * 1000));
-      return arcgisToken;
-    } else {
-      throw new Error(data.error?.message || 'Failed to generate ArcGIS token');
-    }
-  } catch (error) {
-    console.error('ArcGIS token generation error:', error);
-    throw error;
-  }
-}
-
-// Routes
-// ArcGIS token endpoint
-app.get("/api/arcgis/token", async (req, res) => {
-  try {
-    const token = await getArcGISToken();
-    res.json({ token });
-  } catch (error) {
-    console.error('Token generation failed:', error);
-    res.status(500).json({ error: 'Failed to generate ArcGIS token' });
-  }
-});
-
-// ArcGIS geocoding proxy
-app.post("/api/arcgis/geocode", async (req, res) => {
-  try {
-    const { address } = req.body;
-    if (!address) {
-      return res.status(400).json({ error: 'Address is required' });
-    }
-
-    const token = await getArcGISToken();
-    
-    const geocodeUrl = 'https://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates';
-    const params = new URLSearchParams({
-      'Single Line Input': address,
-      f: 'json',
-      token: token,
-      outFields: '*'
-    });
-
-    const response = await fetch(`${geocodeUrl}?${params}`);
-    const data = await response.json();
-    
-    res.json(data);
-  } catch (error) {
-    console.error('Geocoding error:', error);
-    res.status(500).json({ error: 'Geocoding failed' });
-  }
-});
 
 app.get("/api/properties", async (req, res) => {
   try {
