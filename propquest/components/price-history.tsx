@@ -67,7 +67,7 @@ export function PriceHistory({ priceHistory }: PriceHistoryProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl bg-clip-text text-transparent bg-blue-gradient">
+          <CardTitle className="text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
             Price History
           </CardTitle>
         </CardHeader>
@@ -82,7 +82,7 @@ export function PriceHistory({ priceHistory }: PriceHistoryProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl bg-clip-text text-transparent bg-blue-gradient">
+          <CardTitle className="text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
             Price History
           </CardTitle>
         </CardHeader>
@@ -99,7 +99,7 @@ export function PriceHistory({ priceHistory }: PriceHistoryProps) {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-xl bg-clip-text text-transparent bg-blue-gradient">
+          <CardTitle className="text-2xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
             Price History
           </CardTitle>
           <div className="flex items-center space-x-2">
@@ -131,7 +131,7 @@ export function PriceHistory({ priceHistory }: PriceHistoryProps) {
             </div>
             <div>
               <p className="text-xs text-gray-600">Current Price</p>
-              <p className="text-lg font-semibold bg-clip-text text-transparent bg-blue-gradient">
+              <p className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
                 {formatCurrency(lastPrice)}
               </p>
             </div>
