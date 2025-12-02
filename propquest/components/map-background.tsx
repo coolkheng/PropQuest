@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loadModules } from "esri-loader";
 
 interface MapBackgroundProps {
@@ -29,8 +29,30 @@ export function MapBackground({
   Property,
 }: MapBackgroundProps) {
   const mapRef = useRef(null);
+  const [arcgisToken, setArcgisToken] = useState<string | null>(null);
+
+  // Fetch ArcGIS token from backend
+  useEffect(() => {
+    const fetchToken = async () => {
+      try {
+        const response = await fetch('/api/arcgis/token');
+        const data = await response.json();
+        if (data.token) {
+          setArcgisToken(data.token);
+        } else {
+          console.error('Failed to get ArcGIS token:', data.error);
+        }
+      } catch (error) {
+        console.error('Error fetching ArcGIS token:', error);
+      }
+    };
+    
+    fetchToken();
+  }, []);
 
   useEffect(() => {
+    if (!arcgisToken) return; // Wait for token before initializing map
+    
     let moveHandler: any | null = null;
     let view: any | null = null;
     loadModules(
@@ -43,8 +65,8 @@ export function MapBackground({
       ],
       { css: true }
     ).then(([esriConfig, Map, MapView, locator, Graphic]) => {
-      // Use your API key from .env
-      esriConfig.apiKey = process.env.NEXT_PUBLIC_ARCGIS_API_KEY;
+      // Use token from backend instead of API key
+      esriConfig.apiKey = arcgisToken;
 
       const map = new Map({ basemap: "streets" });
 
@@ -60,27 +82,29 @@ export function MapBackground({
         view.popup.autoOpenEnabled = false;
       } catch {}
 
-     
-      const geocodeUrl =
-        "https://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer";
-
-      // Use the geocoder
+      // Use backend geocoding proxy instead of direct ArcGIS API calls
       // Loop through properties
-      Property.forEach((property) => {
-        locator
-          .addressToLocations(geocodeUrl, {
-            address: { address: property.address },
-            outFields: ["*"],
-          })
-          .then((results: any[]) => {
-            if (results.length) {
-              const location = results[0].location;
+      Property.forEach(async (property) => {
+        try {
+          const response = await fetch('/api/arcgis/geocode', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ address: property.address }),
+          });
+          
+          const data = await response.json();
+          const results = data.candidates || [];
+          
+          if (results.length > 0) {
+            const location = results[0].location;
 
-              const point = {
-                type: "point",
-                longitude: location.x,
-                latitude: location.y,
-              };
+            const point = {
+              type: "point",
+              longitude: location.x,
+              latitude: location.y,
+            };
 
               const markerSymbol = {
                 type: "picture-marker", // Use an image as the marker
@@ -107,12 +131,11 @@ export function MapBackground({
                 },
               });
 
-              view.graphics.add(graphic);
-            }
-          })
-          .catch((error: any) => {
-            console.error(`Geocoding failed for ${property.address}:`, error);
-          });
+            view.graphics.add(graphic);
+          }
+        } catch (error) {
+          console.error(`Geocoding failed for ${property.address}:`, error);
+        }
       });
 
       // Hover-only popup using pointer-move and hitTest
@@ -176,7 +199,7 @@ export function MapBackground({
       }
       view = null;
     };
-  }, [Property]);
+  }, [Property, arcgisToken]);
 
   return <div ref={mapRef} className="w-full h-full rounded-xl shadow-lg" />;
 }
