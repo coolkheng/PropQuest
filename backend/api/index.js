@@ -534,8 +534,15 @@ app.post("/api/auth/register", async (req, res) => {
         preferred_locations: [],
         budget_range: { min: null, max: null },
         preferred_types: [],
-        min_size_sqft: null,
         keywords: [],
+        min_size_sqft: null,
+        // rooms and toilets as single numeric values (nullable)
+        rooms: null,
+        toilets: null,
+        // optional extras
+        size_tolerance_pct: 10,
+        radius_km: null,
+        updated_at: null,
       },
 
       // System data
