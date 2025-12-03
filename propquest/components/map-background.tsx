@@ -68,7 +68,7 @@ export function MapBackground({
       // Use the geocoder
       // Limit to 50 properties for initial map loading, but show all for AI search results
       const propertiesToGeocode = isAISearch ? Property : Property.slice(0, 50);
-
+      console.log("Geocoding properties:", propertiesToGeocode.length);
       // Loop through properties
       propertiesToGeocode.forEach((property) => {
         locator
