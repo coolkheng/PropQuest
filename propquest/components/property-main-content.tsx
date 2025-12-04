@@ -25,15 +25,7 @@ const amenities = {
     ],
   }
 
-  const priceHistory = [
-      { date: "Jan 2024", price: 1800 },
-      { date: "Feb 2024", price: 1850 },
-      { date: "Mar 2024", price: 1900 },
-      { date: "Apr 2024", price: 1950 },
-      { date: "May 2024", price: 2000 },
-      { date: "Jun 2024", price: 2050 },
-      { date: "Jul 2024", price: 2100 },
-    ]
+  
 
 interface PropertyMainContentProps {
   propertyData: {
@@ -86,9 +78,7 @@ export function PropertyMainContent({ propertyData }: PropertyMainContentProps) 
 
       <WhatsNearby amenities={amenities} />
 
-      {priceHistory && priceHistory.length > 0 && (
-        <PriceHistory priceHistory={priceHistory} />
-      )}
+     
 
     </div>
   )
