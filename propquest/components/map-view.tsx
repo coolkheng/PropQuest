@@ -47,6 +47,7 @@ export function MapView({
         hoveredProperty={hoveredProperty}
         onPropertyHover={onPropertyHover}
         onPropertyClick={onPropertyClick}
+        isAISearch={isAISearch}
       />
     </div>
   );

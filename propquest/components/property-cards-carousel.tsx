@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { MapPropertyCard } from "./map-property-card"
+import { MapPropertyCard } from "./map-property-card";
 
 interface Property {
   _id: string;
@@ -21,10 +21,11 @@ interface Property {
 }
 
 interface PropertyCardsCarouselProps {
-  properties: Property[]
-  hoveredProperty: string | null
-  onPropertyHover: (id: string | null) => void
-  onPropertyClick: (id: string) => void
+  properties: Property[];
+  hoveredProperty: string | null;
+  onPropertyHover: (id: string | null) => void;
+  onPropertyClick: (id: string) => void;
+  isAISearch?: boolean;
 }
 
 export function PropertyCardsCarousel({
@@ -32,11 +33,15 @@ export function PropertyCardsCarousel({
   hoveredProperty,
   onPropertyHover,
   onPropertyClick,
+  isAISearch = false,
 }: PropertyCardsCarouselProps) {
+  // Limit to 50 properties for initial load, show all for AI search results
+  const displayProperties = isAISearch ? properties : properties.slice(0, 50);
+
   return (
     <div className="absolute bottom-4 left-4 right-4">
       <div className="flex space-x-2 overflow-x-auto pb-2">
-        {properties.map((property) => (
+        {displayProperties.map((property) => (
           <MapPropertyCard
             key={property._id}
             property={property}
@@ -48,5 +53,5 @@ export function PropertyCardsCarousel({
         ))}
       </div>
     </div>
-  )
+  );
 }
