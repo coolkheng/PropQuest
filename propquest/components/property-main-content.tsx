@@ -78,8 +78,6 @@ export function PropertyMainContent({ propertyData }: PropertyMainContentProps) 
 
       <WhatsNearby amenities={amenities} />
 
-     
-
     </div>
   )
 }

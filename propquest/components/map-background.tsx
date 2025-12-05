@@ -77,6 +77,8 @@ export function MapBackground({
       // Clear previous graphics
       graphicsMapRef.current.clear();
 
+      let isFirstProperty = true;
+
       // Loop through properties
       propertiesToGeocode.forEach((property) => {
         locator
@@ -87,6 +89,12 @@ export function MapBackground({
           .then((results: any[]) => {
             if (results.length) {
               const location = results[0].location;
+
+              // Center map on first property
+              if (isFirstProperty) {
+                viewRef.current.center = [location.x, location.y];
+                isFirstProperty = false;
+              }
 
               const point = {
                 type: "point",
