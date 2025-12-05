@@ -33,6 +33,7 @@ export function MapBackground({
   const mapRef = useRef(null);
   const viewRef = useRef<any>(null);
   const graphicsMapRef = useRef<Map<string, any>>(new Map());
+  const lastHoveredRef = useRef<string | null>(null);
 
   // Effect for initial map setup and geocoding - runs only when Property changes
   useEffect(() => {
@@ -196,16 +197,46 @@ export function MapBackground({
   useEffect(() => {
     if (!viewRef.current || graphicsMapRef.current.size === 0) return;
 
-    // Update all markers based on hover state
-    graphicsMapRef.current.forEach((graphic, propertyId) => {
-      const isHovered = hoveredProperty === propertyId;
-      graphic.symbol = {
-        type: "picture-marker",
-        url: isHovered ? "/highlighted-location-pin.png" : "/location-pin.png",
-        width: isHovered ? "50px" : "40px",
-        height: isHovered ? "50px" : "40px",
-      };
-    });
+    const updateMarker = (propertyId: string, isHovered: boolean) => {
+      const graphic = graphicsMapRef.current.get(propertyId);
+      if (!graphic) return;
+
+      if (isHovered) {
+        // Remove and re-add to bring to front
+        viewRef.current.graphics.remove(graphic);
+        graphic.symbol = {
+          type: "picture-marker",
+          url: "/highlighted-location-pin.png",
+          width: "50px",
+          height: "50px",
+        };
+        viewRef.current.graphics.add(graphic);
+      } else {
+        graphic.symbol = {
+          type: "picture-marker",
+          url: "/location-pin.png",
+          width: "40px",
+          height: "40px",
+        };
+      }
+    };
+
+    if (hoveredProperty) {
+      // User is hovering over a property
+      if (
+        lastHoveredRef.current &&
+        lastHoveredRef.current !== hoveredProperty
+      ) {
+        // Revert the previously highlighted marker
+        updateMarker(lastHoveredRef.current, false);
+      }
+
+      // Highlight the new property
+      updateMarker(hoveredProperty, true);
+      lastHoveredRef.current = hoveredProperty;
+    }
+    // Note: We do NOT revert when hoveredProperty becomes null
+    // The highlighted marker stays until user hovers another property
   }, [hoveredProperty]); // Only re-run when hoveredProperty changes
 
   return <div ref={mapRef} className="w-full h-full rounded-xl shadow-lg" />;
