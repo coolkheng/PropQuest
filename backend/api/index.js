@@ -46,7 +46,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 app.get("/api/properties", async (req, res) => {
   try {
     const db = await connectToDatabase();
-    const properties = await db.collection("properties").find({}).toArray();
+    const properties = await db.collection("propertieswithprice").find({}).toArray();
     res.json(properties);
   } catch (error) {
     console.error(error);
@@ -57,7 +57,7 @@ app.get("/api/properties", async (req, res) => {
 app.get("/api/properties/:id", async (req, res) => {
   try {
     const db = await connectToDatabase();
-    const property = await db.collection("properties").findOne(
+    const property = await db.collection("propertieswithprice").findOne(
       { _id: new ObjectId(req.params.id) },
       {
         projection: {

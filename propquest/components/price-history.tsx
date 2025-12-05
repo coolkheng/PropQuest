@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useState } from "react";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   LineChart,
@@ -21,6 +22,35 @@ interface PriceHistoryProps {
 }
 
 export function PriceHistory({ priceHistory }: PriceHistoryProps) {
+
+  if (!priceHistory || priceHistory.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">Price History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <Image
+                src="/chiikawa_crying.png"
+                alt="No price history available"
+                width={140}
+                height={140}
+                className="opacity-80"
+              />
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold text-gray-900">No Price History Available</h3>
+              <p className="text-sm text-gray-600 max-w-md">
+                Price history data is not available for this property yet. Check back later for pricing trends and
+                changes.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   // Avoid potential SSR/hydration issues with Recharts by rendering after mount
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);

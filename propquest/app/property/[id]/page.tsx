@@ -6,7 +6,6 @@ import { PropertyMainContent } from "@/components/property-main-content";
 import { PropertySidebar } from "@/components/property-sidebar";
 import { PriceHistory } from "@/components/price-history";
 
-
 interface Property {
   _id: string;
   url: string;
@@ -23,17 +22,13 @@ interface Property {
   date_listed: string;
   images: string[];
   facilities: string[];
+  priceHistory?: Array<{
+    date: string;
+    price: number;
+  }>;
 }
 
-const priceHistory = [
-      { date: "Jan 2024", price: 1800 },
-      { date: "Feb 2024", price: 1850 },
-      { date: "Mar 2024", price: 1900 },
-      { date: "Apr 2024", price: 1950 },
-      { date: "May 2024", price: 2000 },
-      { date: "Jun 2024", price: 2050 },
-      { date: "Jul 2024", price: 2100 },
-    ]
+
 
 export default function PropertyDetailPage({
   params,
@@ -98,14 +93,10 @@ export default function PropertyDetailPage({
           </div>
         )}
 
-          <div className="mt-8">
-          {priceHistory && priceHistory.length > 0 && (
-        <PriceHistory priceHistory={priceHistory} />
-      )}
+        <div className="mt-8">
+          <PriceHistory priceHistory={propertyData?.priceHistory || []} />
+        </div>
       </div>
-       
-      </div>
-
     </div>
   );
 }
