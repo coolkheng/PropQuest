@@ -91,25 +91,27 @@ app.get("/api/properties/:id", async (req, res) => {
       property.historical_prices &&
       Array.isArray(property.historical_prices)
     ) {
-      property.priceHistory = property.historical_prices.map((entry) => {
-        // Extract numeric price value from string like "RM 1.1M" or "RM 640K"
-        let priceNum = 0;
-        if (entry.price) {
-          const priceStr = entry.price.replace(/RM\s*/i, "").trim();
-          if (priceStr.endsWith("M")) {
-            priceNum = parseFloat(priceStr) * 1000000;
-          } else if (priceStr.endsWith("K")) {
-            priceNum = parseFloat(priceStr) * 1000;
-          } else {
-            priceNum = parseFloat(priceStr.replace(/,/g, ""));
+      property.priceHistory = property.historical_prices
+        .map((entry) => {
+          // Extract numeric price value from string like "RM 1.1M" or "RM 640K"
+          let priceNum = 0;
+          if (entry.price) {
+            const priceStr = entry.price.replace(/RM\s*/i, "").trim();
+            if (priceStr.endsWith("M")) {
+              priceNum = parseFloat(priceStr) * 1000000;
+            } else if (priceStr.endsWith("K")) {
+              priceNum = parseFloat(priceStr) * 1000;
+            } else {
+              priceNum = parseFloat(priceStr.replace(/,/g, ""));
+            }
           }
-        }
 
-        return {
-          date: entry.date || "",
-          price: Math.round(priceNum),
-        };
-      });
+          return {
+            date: entry.date || "",
+            price: Math.round(priceNum),
+          };
+        })
+        .reverse(); // Reverse to show chronological order (oldest first)
     } else {
       property.priceHistory = [];
     }
