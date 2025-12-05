@@ -42,11 +42,13 @@ async function connectToDatabase() {
 }
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-
 app.get("/api/properties", async (req, res) => {
   try {
     const db = await connectToDatabase();
-    const properties = await db.collection("propertieswithprice").find({}).toArray();
+    const properties = await db
+      .collection("propertieswithprice")
+      .find({})
+      .toArray();
     res.json(properties);
   } catch (error) {
     console.error(error);
@@ -75,12 +77,41 @@ app.get("/api/properties/:id", async (req, res) => {
           date_listed: 1,
           images: 1,
           facilities: 1,
+          historical_prices: 1,
         },
       }
     );
 
     if (!property) {
       return res.status(404).json({ error: "Property not found" });
+    }
+
+    // Transform historical_prices to priceHistory format if it exists
+    if (
+      property.historical_prices &&
+      Array.isArray(property.historical_prices)
+    ) {
+      property.priceHistory = property.historical_prices.map((entry) => {
+        // Extract numeric price value from string like "RM 1.1M" or "RM 640K"
+        let priceNum = 0;
+        if (entry.price) {
+          const priceStr = entry.price.replace(/RM\s*/i, "").trim();
+          if (priceStr.endsWith("M")) {
+            priceNum = parseFloat(priceStr) * 1000000;
+          } else if (priceStr.endsWith("K")) {
+            priceNum = parseFloat(priceStr) * 1000;
+          } else {
+            priceNum = parseFloat(priceStr.replace(/,/g, ""));
+          }
+        }
+
+        return {
+          date: entry.date || "",
+          price: Math.round(priceNum),
+        };
+      });
+    } else {
+      property.priceHistory = [];
     }
 
     res.json(property);
