@@ -31,10 +31,13 @@ export function MapBackground({
   isAISearch = false,
 }: MapBackgroundProps) {
   const mapRef = useRef(null);
+  const viewRef = useRef<any>(null);
+  const graphicsMapRef = useRef<Map<string, any>>(new Map());
 
+  // Effect for initial map setup and geocoding - runs only when Property changes
   useEffect(() => {
     let moveHandler: any | null = null;
-    let view: any | null = null;
+
     loadModules(
       [
         "esri/config",
@@ -50,7 +53,7 @@ export function MapBackground({
 
       const map = new Map({ basemap: "streets" });
 
-      view = new MapView({
+      viewRef.current = new MapView({
         container: mapRef.current,
         map: map,
         center: [101.6869, 3.139], // default center (Kuala Lumpur)
@@ -59,7 +62,7 @@ export function MapBackground({
 
       // Disable default auto-open on click; we'll control popup manually on hover
       try {
-        view.popup.autoOpenEnabled = false;
+        viewRef.current.popup.autoOpenEnabled = false;
       } catch {}
 
       const geocodeUrl =
@@ -69,6 +72,10 @@ export function MapBackground({
       // Limit to 50 properties for initial map loading, but show all for AI search results
       const propertiesToGeocode = isAISearch ? Property : Property.slice(0, 50);
       console.log("Geocoding properties:", propertiesToGeocode.length);
+
+      // Clear previous graphics
+      graphicsMapRef.current.clear();
+
       // Loop through properties
       propertiesToGeocode.forEach((property) => {
         locator
@@ -87,9 +94,9 @@ export function MapBackground({
               };
 
               const markerSymbol = {
-                type: "picture-marker", // Use an image as the marker
-                url: "/location-pin.png", // Correct path for public assets in Next.js
-                width: "40px", // Adjust the size of the marker
+                type: "picture-marker",
+                url: "/location-pin.png", // Start with default red pin
+                width: "40px",
                 height: "40px",
               };
 
@@ -97,6 +104,7 @@ export function MapBackground({
                 geometry: point,
                 symbol: markerSymbol,
                 attributes: {
+                  _id: property._id, // Add property ID to identify marker
                   title: property.title,
                   address: property.address,
                   price: property.price,
@@ -111,7 +119,8 @@ export function MapBackground({
                 },
               });
 
-              view.graphics.add(graphic);
+              viewRef.current.graphics.add(graphic);
+              graphicsMapRef.current.set(property._id, graphic); // Store reference to update later
             }
           })
           .catch((error: any) => {
@@ -120,8 +129,8 @@ export function MapBackground({
       });
 
       // Hover-only popup using pointer-move and hitTest
-      moveHandler = view.on("pointer-move", (event: any) => {
-        view
+      moveHandler = viewRef.current.on("pointer-move", (event: any) => {
+        viewRef.current
           .hitTest(event)
           .then((response: any) => {
             const hit = response.results?.find((r: any) => r.graphic);
@@ -131,7 +140,7 @@ export function MapBackground({
                 ? `<img src="${attrs.image}" alt="${attrs.title ?? "Property"}"
                      style="width:110px;height:78px;object-fit:cover;border-radius:8px;margin-right:12px;" />`
                 : "";
-              view.popup.open({
+              viewRef.current.popup.open({
                 title: attrs.title || "Property",
                 content: `
                   <div style="line-height:1.4">
@@ -157,7 +166,7 @@ export function MapBackground({
                 location: hit.graphic.geometry,
               });
             } else {
-              view.popup.close();
+              viewRef.current.popup.close();
             }
           })
           .catch(() => {
@@ -165,6 +174,7 @@ export function MapBackground({
           });
       });
     });
+
     // Cleanup: remove pointer handler and destroy the view
     return () => {
       if (moveHandler && typeof moveHandler.remove === "function") {
@@ -173,14 +183,30 @@ export function MapBackground({
         } catch {}
       }
       moveHandler = null;
-      if (view && typeof view.destroy === "function") {
+      if (viewRef.current && typeof viewRef.current.destroy === "function") {
         try {
-          view.destroy();
+          viewRef.current.destroy();
         } catch {}
       }
-      view = null;
+      viewRef.current = null;
     };
-  }, [Property]);
+  }, [Property, isAISearch]); // Only re-run when Property array changes
+
+  // Separate effect to handle hover state changes - only updates marker symbols
+  useEffect(() => {
+    if (!viewRef.current || graphicsMapRef.current.size === 0) return;
+
+    // Update all markers based on hover state
+    graphicsMapRef.current.forEach((graphic, propertyId) => {
+      const isHovered = hoveredProperty === propertyId;
+      graphic.symbol = {
+        type: "picture-marker",
+        url: isHovered ? "/highlighted-location-pin.png" : "/location-pin.png",
+        width: isHovered ? "50px" : "40px",
+        height: isHovered ? "50px" : "40px",
+      };
+    });
+  }, [hoveredProperty]); // Only re-run when hoveredProperty changes
 
   return <div ref={mapRef} className="w-full h-full rounded-xl shadow-lg" />;
 }
