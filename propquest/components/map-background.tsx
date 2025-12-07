@@ -25,6 +25,9 @@ interface Property {
   facilities: string[];
 }
 
+const geocodeUrl =
+  "https://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer";
+
 export function MapBackground({
   hoveredProperty,
   Property,
@@ -65,9 +68,6 @@ export function MapBackground({
       try {
         viewRef.current.popup.autoOpenEnabled = false;
       } catch {}
-
-      const geocodeUrl =
-        "https://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer";
 
       // Use the geocoder
       // Limit to 50 properties for initial map loading, but show all for AI search results
@@ -164,8 +164,8 @@ export function MapBackground({
                         <div><strong>Baths:</strong> ${attrs.baths ?? "-"}</div>
                         <div><strong>Sqft:</strong> ${attrs.sqft ?? "-"}</div>
                         ${
-                          attrs.url
-                            ? `<div style="margin-top:6px;"><a href="${attrs.url}" target="_blank" rel="noopener noreferrer">View listing</a></div>`
+                          attrs._id
+                            ? `<div style="margin-top:6px;"><a href="${`http://localhost:3000/property/${attrs._id}`}">View listing</a></div>`
                             : ""
                         }
                       </div>
