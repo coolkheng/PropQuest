@@ -87,15 +87,22 @@ export default function PropertyDetailPage({
 
       <div className="max-w-7xl mx-auto px-4 py-6">
         {propertyData && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <>
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <PropertyMainContent propertyData={propertyData} />
             <PropertySidebar propertyData={propertyData} />
           </div>
-        )}
 
-        <div className="mt-8">
+          <div className="mt-8">
           <PriceHistory priceHistory={propertyData?.priceHistory || []} />
         </div>
+
+        
+          </>
+         
+        )}
+
+        
       </div>
     </div>
   );
