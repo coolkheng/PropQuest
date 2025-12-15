@@ -15,17 +15,9 @@ export function BackNavigation({ referrer }: BackNavigationProps) {
     router.push(referrer)
   }
 
-  const getBackButtonText = () => {
-    if (referrer === "/listing") {
-      return "Back"
-    }
-    return "Back"
-  }
-
   return (
     <Button variant="ghost" size="sm" onClick={handleBackClick}>
       <ArrowLeft className="h-4 w-4 mr-2" />
-      {getBackButtonText()}
     </Button>
   )
 }

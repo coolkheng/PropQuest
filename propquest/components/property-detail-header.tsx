@@ -1,6 +1,8 @@
 "use client";
 
 import { BackNavigation } from "./back-navigation";
+import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/useSession";
 
@@ -16,9 +18,19 @@ export function PropertyDetailHeader({ referrer }: PropertyDetailHeaderProps) {
       <div className="flex items-center justify-between max-w-7xl mx-auto">
         <div className="flex items-center space-x-4">
           <BackNavigation referrer={referrer} />
-          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
-            PropQuest
-          </h1>
+         <Link
+          href="/"
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+        >
+          <Image
+            src="/propquest_header_logo.png"
+            alt="PropQuest Logo"
+            width={150}
+            height={40}
+            className="object-contain"
+          />
+          
+        </Link>
         </div>
         <div className="flex items-center space-x-4">
           {!loading && user ? (

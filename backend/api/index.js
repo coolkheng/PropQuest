@@ -201,38 +201,73 @@ app.post("/api/properties/search", async (req, res) => {
     pipeline.push({
       $addFields: {
         price_num: {
-          $toInt: {
-            $replaceAll: {
-              input: {
-                $replaceAll: { input: "$price", find: "RM ", replacement: "" },
+          $cond: {
+            if: { $eq: [{ $type: "$price" }, "string"] },
+            then: {
+              $toInt: {
+                $replaceAll: {
+                  input: {
+                    $replaceAll: {
+                      input: "$price",
+                      find: "RM ",
+                      replacement: "",
+                    },
+                  },
+                  find: ",",
+                  replacement: "",
+                },
               },
-              find: ",",
-              replacement: "",
             },
+            else: { $toInt: "$price" },
           },
         },
         beds_num: {
           $cond: {
             if: { $eq: ["$beds", "N/A"] },
             then: 0,
-            else: { $toInt: "$beds" },
+            else: {
+              $cond: {
+                if: { $eq: [{ $type: "$beds" }, "string"] },
+                then: { $toInt: "$beds" },
+                else: "$beds",
+              },
+            },
           },
         },
         baths_num: {
           $cond: {
             if: { $eq: ["$baths", "N/A"] },
             then: 0,
-            else: { $toInt: "$baths" },
+            else: {
+              $cond: {
+                if: { $eq: [{ $type: "$baths" }, "string"] },
+                then: { $toInt: "$baths" },
+                else: "$baths",
+              },
+            },
           },
         },
         sqft_num: {
-          $convert: {
-            input: {
-              $replaceAll: { input: "$sqft", find: ",", replacement: "" },
+          $cond: {
+            if: { $eq: [{ $type: "$sqft" }, "string"] },
+            then: {
+              $convert: {
+                input: {
+                  $replaceAll: { input: "$sqft", find: ",", replacement: "" },
+                },
+                to: "double",
+                onError: 0,
+                onNull: 0,
+              },
             },
-            to: "double",
-            onError: 0,
-            onNull: 0,
+            else: {
+              $convert: {
+                input: "$sqft",
+                to: "double",
+                onError: 0,
+                onNull: 0,
+              },
+            },
           },
         },
       },
@@ -274,7 +309,7 @@ app.post("/api/properties/search", async (req, res) => {
     });
     console.log("Aggregation Pipeline:", JSON.stringify(pipeline, null, 2));
     const results = await db
-      .collection("properties")
+      .collection("propertieswithprice")
       .aggregate(pipeline)
       .toArray();
     res.json(results);
@@ -366,7 +401,6 @@ app.post("/api/chat/questions", async (req, res) => {
 // Endpoint to handle user preferences
 app.post("/api/chat/preferences", async (req, res) => {
   const { conversation } = req.body;
-  console.log("Received Conversation:", conversation);
 
   if (!conversation) {
     return res.status(400).json({ error: "Conversation is required" });
