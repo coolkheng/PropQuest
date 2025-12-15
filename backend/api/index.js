@@ -438,6 +438,10 @@ app.post("/api/chat/preferences", async (req, res) => {
                 type: "string",
                 enum: ["ask", "search"],
               },
+              question_asking_preferences:{
+                type: ["string", "null"],
+                enum: ["price_min", "price_max", "beds_min", "baths_min", "sqft_min", "sqft_max", "house_type", "lease_type", "furnishing", "facilities"],
+              },
               question: {
                 type: ["string", "null"],
               },

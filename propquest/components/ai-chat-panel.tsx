@@ -43,10 +43,11 @@ export function AiChatPanel({ properties, setProperties, setIsAISearch }: AiChat
   ); // Initialize preferences state
 
   const question = useRef("");
-  const conversation = useRef<Array<{ role: string; content: string }>>([]);
+  const question_asking_preferences = useRef("");
+  const conversation = useRef<Array<{ content: string }>>([]);
 
-  function addMessage(role: string, content: string) {
-    conversation.current.push({ role, content });
+  function addMessage(content: string) {
+    conversation.current.push({content});
   }
 
   function addQuestion(newQuestion: string) {
@@ -178,14 +179,12 @@ export function AiChatPanel({ properties, setProperties, setIsAISearch }: AiChat
       if (isPersonalizedActive) {
         if (conversation.current.length === 0) {
           addMessage(
-            "user",
-            `Last Question: Are you looking for a condo, landed house, or apartment? Preferences:${aiRequest.trim()}`
+            `Last Question: house_type question Preferences:${aiRequest.trim()}`
           );
         } else {
           addMessage(
-            "user",
             `Last Question: ${
-              question.current
+              question_asking_preferences.current
             } Preferences: ${aiRequest.trim()}`
           );
         }
@@ -202,11 +201,13 @@ export function AiChatPanel({ properties, setProperties, setIsAISearch }: AiChat
 
           const {
             intent,
+            question_asking_preferences: backendQuestionType,
             question: backendQuestion,
             preferences,
           } = backendResponse.data.reply;
 
           question.current = backendQuestion;
+          question_asking_preferences.current = backendQuestionType;
 
           console.log("Backend response:", backendResponse.data.reply);
 
