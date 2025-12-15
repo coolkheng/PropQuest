@@ -24,7 +24,11 @@ interface AiChatPanelProps {
   setIsAISearch: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export function AiChatPanel({ properties, setProperties, setIsAISearch }: AiChatPanelProps) {
+export function AiChatPanel({
+  properties,
+  setProperties,
+  setIsAISearch,
+}: AiChatPanelProps) {
   const [aiRequest, setAiRequest] = useState("");
   const [isAiTyping, setIsAiTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -47,7 +51,7 @@ export function AiChatPanel({ properties, setProperties, setIsAISearch }: AiChat
   const conversation = useRef<Array<{ content: string }>>([]);
 
   function addMessage(content: string) {
-    conversation.current.push({content});
+    conversation.current.push({ content });
   }
 
   function addQuestion(newQuestion: string) {
@@ -233,11 +237,22 @@ export function AiChatPanel({ properties, setProperties, setIsAISearch }: AiChat
             };
             setMessages((prev) => [...prev, aiQuestion]);
           } else if (intent === "search") {
+            // Search for properties using the collected preferences
+            const response = await axios.post(
+              "http://localhost:5001/api/properties/search",
+              {
+                filters: JSON.stringify(preferences),
+              }
+            );
+
+            const properties = response.data;
+            setProperties(properties);
+            setIsAISearch(true);
+
             const aiResponse: ChatMessage = {
               id: (Date.now() + 1).toString(),
               type: "ai",
-              content:
-                "Great! Let me find properties that match your preferences.",
+              content: `I found ${properties.length} properties matching your preferences. Check them out on the map!`,
               timestamp: new Date(),
             };
             setMessages((prev) => [...prev, aiResponse]);
