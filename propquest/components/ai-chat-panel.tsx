@@ -238,10 +238,13 @@ export function AiChatPanel({
             setMessages((prev) => [...prev, aiQuestion]);
           } else if (intent === "search") {
             // Search for properties using the collected preferences
+            const normalizedPreferences = normalizePreferences(preferences);
+            console.log("Normalized preferences:", normalizedPreferences);
+            
             const response = await axios.post(
               "http://localhost:5001/api/properties/search",
               {
-                filters: JSON.stringify(preferences),
+                filters: JSON.stringify(normalizedPreferences),
               }
             );
 
@@ -347,6 +350,49 @@ export function AiChatPanel({
       }
     }
     return merged;
+  }
+
+  // Function to normalize preferences for database search
+  function normalizePreferences(prefs: Record<string, any>): Record<string, any> {
+    const normalized = { ...prefs };
+
+    // Helper function to capitalize first letter of each word
+    const capitalizeWords = (str: string): string => {
+      return str
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+    };
+
+    // Normalize house_type
+    if (normalized.house_type) {
+      let houseType = normalized.house_type.toLowerCase();
+      // Convert "condo" to "condominium"
+      if (houseType === 'condo' || houseType === 'condos' || houseType === 'Condo') {
+        normalized.house_type = 'Condominium';
+      } else {
+        normalized.house_type = capitalizeWords(normalized.house_type);
+      }
+    }
+
+    // Normalize lease_type
+    if (normalized.lease_type) {
+      normalized.lease_type = capitalizeWords(normalized.lease_type);
+    }
+
+    // Normalize furnishing
+    if (normalized.furnishing) {
+      normalized.furnishing = capitalizeWords(normalized.furnishing);
+    }
+
+    // Normalize facilities array
+    if (normalized.facilities && Array.isArray(normalized.facilities)) {
+      normalized.facilities = normalized.facilities.map((facility: string) =>
+        capitalizeWords(facility)
+      );
+    }
+
+    return normalized;
   }
 
   return (

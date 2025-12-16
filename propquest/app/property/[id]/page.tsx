@@ -96,8 +96,6 @@ export default function PropertyDetailPage({
           <div className="mt-8">
           <PriceHistory priceHistory={propertyData?.priceHistory || []} />
         </div>
-
-        
           </>
          
         )}

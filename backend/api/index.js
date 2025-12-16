@@ -191,7 +191,16 @@ app.post("/api/properties/search", async (req, res) => {
       matchStage.address = { $regex: filters.location, $options: "i" };
     if (filters.house_type) matchStage.house_type = filters.house_type;
     if (filters.lease_type) matchStage.lease_type = filters.lease_type;
-    if (filters.furnishing) matchStage.furnishing = filters.furnishing;
+    
+    // Handle furnishing: "Furnished" matches both "Partially Furnished" and "Fully Furnished"
+    if (filters.furnishing) {
+      if (filters.furnishing.toLowerCase() === 'furnished') {
+        matchStage.furnishing = { $regex: /furnished/i };
+      } else {
+        matchStage.furnishing = filters.furnishing;
+      }
+    }
+    
     if (filters.facilities)
       matchStage.facilities = { $all: filters.facilities };
 
@@ -414,6 +423,7 @@ app.post("/api/chat/preferences", async (req, res) => {
             When all main preferences are filled, say 'Search' in intent and provide the full preferences.
             If the user has no preference, set the value to null.
             If the user is unclear, ask for clarification.
+            Give user example options for house_type, lease_type, furnishing, and facilities when asking for preferences.
             Condo = Condominium
             `,
     },
