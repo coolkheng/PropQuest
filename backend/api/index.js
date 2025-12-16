@@ -342,7 +342,7 @@ app.post("/api/chat/classify", async (req, res) => {
 You are an intent classifier for a property chatbot.
 Classify the user's intent into one of these three:
 - "search" (the user wants to find,search properties)
-- "question" (the user asks about property info or concepts)
+- "question" (ONLY WHEN the user asks about property info or concepts)
 - "unknown" 
 Return only JSON.
       `,
