@@ -145,6 +145,22 @@ export function MapBackground({
             const hit = response.results?.find((r: any) => r.graphic);
             if (hit && hit.graphic && hit.graphic.attributes) {
               const attrs = hit.graphic.attributes;
+
+              // Add scale-up animation on hover
+              const graphic = hit.graphic;
+              if (!graphic.originalSize) {
+                graphic.originalSize = {
+                  width: graphic.symbol.width,
+                  height: graphic.symbol.height,
+                };
+              }
+              graphic.symbol = {
+                type: "picture-marker",
+                url: graphic.symbol.url,
+                width: "45px",
+                height: "45px",
+              };
+
               const imgHtml = attrs.image
                 ? `<img src="${attrs.image}" alt="${attrs.title ?? "Property"}"
                      style="width:110px;height:78px;object-fit:cover;border-radius:8px;margin-right:12px;" />`
@@ -165,7 +181,7 @@ export function MapBackground({
                         <div><strong>Sqft:</strong> ${attrs.sqft ?? "-"}</div>
                         ${
                           attrs._id
-                            ? `<div style="margin-top:6px;"><a href="${`http://localhost:3000/property/${attrs._id}`}">View listing</a></div>`
+                            ? `<div style="margin-top:6px;"><a href="${`/property/${attrs._id}`}">View listing</a></div>`
                             : ""
                         }
                       </div>
@@ -176,6 +192,21 @@ export function MapBackground({
               });
             } else {
               viewRef.current.popup.close();
+
+              // Reset size of previously hovered graphic
+              viewRef.current.graphics.items.forEach((graphic: any) => {
+                if (
+                  graphic.originalSize &&
+                  graphic.symbol.url === "/location-pin.png"
+                ) {
+                  graphic.symbol = {
+                    type: "picture-marker",
+                    url: "/location-pin.png",
+                    width: "40px",
+                    height: "40px",
+                  };
+                }
+              });
             }
           })
           .catch(() => {
@@ -219,7 +250,44 @@ export function MapBackground({
           height: "50px",
         };
         viewRef.current.graphics.add(graphic);
+
+        // Animate size with pulse effect
+        let size = 50;
+        let growing = true;
+        const animationInterval = setInterval(() => {
+          if (growing) {
+            size += 1;
+            if (size >= 55) growing = false;
+          } else {
+            size -= 1;
+            if (size <= 50) growing = true;
+          }
+
+          const currentGraphic = graphicsMapRef.current.get(propertyId);
+          if (
+            currentGraphic &&
+            currentGraphic.symbol.url === "/highlighted-location-pin.png"
+          ) {
+            currentGraphic.symbol = {
+              type: "picture-marker",
+              url: "/highlighted-location-pin.png",
+              width: `${size}px`,
+              height: `${size}px`,
+            };
+          } else {
+            clearInterval(animationInterval);
+          }
+        }, 50);
+
+        // Store interval ID for cleanup
+        (graphic as any).animationInterval = animationInterval;
       } else {
+        // Clear animation interval if exists
+        if ((graphic as any).animationInterval) {
+          clearInterval((graphic as any).animationInterval);
+          delete (graphic as any).animationInterval;
+        }
+
         graphic.symbol = {
           type: "picture-marker",
           url: "/location-pin.png",
