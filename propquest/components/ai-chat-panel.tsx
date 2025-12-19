@@ -21,9 +21,14 @@ interface ChatMessage {
 interface AiChatPanelProps {
   properties: Property[];
   setProperties: React.Dispatch<React.SetStateAction<Property[]>>;
+  setIsAISearch: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
+export function AiChatPanel({
+  properties,
+  setProperties,
+  setIsAISearch,
+}: AiChatPanelProps) {
   const [aiRequest, setAiRequest] = useState("");
   const [isAiTyping, setIsAiTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -42,10 +47,11 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
   ); // Initialize preferences state
 
   const question = useRef("");
-  const conversation = useRef<Array<{ role: string; content: string }>>([]);
+  const question_asking_preferences = useRef("");
+  const conversation = useRef<Array<{ content: string }>>([]);
 
-  function addMessage(role: string, content: string) {
-    conversation.current.push({ role, content });
+  function addMessage(content: string) {
+    conversation.current.push({ content });
   }
 
   function addQuestion(newQuestion: string) {
@@ -134,6 +140,7 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
 
           const properties = response.data;
           setProperties(properties); // Update the properties state with the API response
+          setIsAISearch(true); // Mark as AI search results
 
           const aiResponse: ChatMessage = {
             id: (Date.now() + 1).toString(),
@@ -176,14 +183,12 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
       if (isPersonalizedActive) {
         if (conversation.current.length === 0) {
           addMessage(
-            "user",
-            `Last Question: Are you looking for a condo, landed house, or apartment? Preferences:${aiRequest.trim()}`
+            `Last Question: house_type question Preferences:${aiRequest.trim()}`
           );
         } else {
           addMessage(
-            "user",
             `Last Question: ${
-              question.current
+              question_asking_preferences.current
             } Preferences: ${aiRequest.trim()}`
           );
         }
@@ -200,11 +205,13 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
 
           const {
             intent,
+            question_asking_preferences: backendQuestionType,
             question: backendQuestion,
             preferences,
           } = backendResponse.data.reply;
 
           question.current = backendQuestion;
+          question_asking_preferences.current = backendQuestionType;
 
           console.log("Backend response:", backendResponse.data.reply);
 
@@ -230,11 +237,25 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
             };
             setMessages((prev) => [...prev, aiQuestion]);
           } else if (intent === "search") {
+            // Search for properties using the collected preferences
+            const normalizedPreferences = normalizePreferences(preferences);
+            console.log("Normalized preferences:", normalizedPreferences);
+            
+            const response = await axios.post(
+              "http://localhost:5001/api/properties/search",
+              {
+                filters: JSON.stringify(normalizedPreferences),
+              }
+            );
+
+            const properties = response.data;
+            setProperties(properties);
+            setIsAISearch(true);
+
             const aiResponse: ChatMessage = {
               id: (Date.now() + 1).toString(),
               type: "ai",
-              content:
-                "Great! Let me find properties that match your preferences.",
+              content: `I found ${properties.length} properties matching your preferences. Check them out on the map!`,
               timestamp: new Date(),
             };
             setMessages((prev) => [...prev, aiResponse]);
@@ -329,6 +350,49 @@ export function AiChatPanel({ properties, setProperties }: AiChatPanelProps) {
       }
     }
     return merged;
+  }
+
+  // Function to normalize preferences for database search
+  function normalizePreferences(prefs: Record<string, any>): Record<string, any> {
+    const normalized = { ...prefs };
+
+    // Helper function to capitalize first letter of each word
+    const capitalizeWords = (str: string): string => {
+      return str
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+    };
+
+    // Normalize house_type
+    if (normalized.house_type) {
+      let houseType = normalized.house_type.toLowerCase();
+      // Convert "condo" to "condominium"
+      if (houseType === 'condo' || houseType === 'condos' || houseType === 'Condo') {
+        normalized.house_type = 'Condominium';
+      } else {
+        normalized.house_type = capitalizeWords(normalized.house_type);
+      }
+    }
+
+    // Normalize lease_type
+    if (normalized.lease_type) {
+      normalized.lease_type = capitalizeWords(normalized.lease_type);
+    }
+
+    // Normalize furnishing
+    if (normalized.furnishing) {
+      normalized.furnishing = capitalizeWords(normalized.furnishing);
+    }
+
+    // Normalize facilities array
+    if (normalized.facilities && Array.isArray(normalized.facilities)) {
+      normalized.facilities = normalized.facilities.map((facility: string) =>
+        capitalizeWords(facility)
+      );
+    }
+
+    return normalized;
   }
 
   return (

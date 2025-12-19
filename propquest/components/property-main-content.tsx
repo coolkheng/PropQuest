@@ -1,5 +1,6 @@
 import { ImageGallery } from "./image-gallery"
 import { ListingOverview } from "./listing-overview"
+import { PriceHistory } from "./price-history"
 import { PropertyDetails } from "./property-details"
 import { WhatsNearby } from "./whats-nearby"
 
@@ -23,7 +24,9 @@ const amenities = {
       { name: "Subway Elmina Lifestyle", time: "7 mins", distance: "600 m" },
     ],
   }
+
   
+
 interface PropertyMainContentProps {
   propertyData: {
   _id: string;
@@ -74,6 +77,7 @@ export function PropertyMainContent({ propertyData }: PropertyMainContentProps) 
       />
 
       <WhatsNearby amenities={amenities} />
+
     </div>
   )
 }
