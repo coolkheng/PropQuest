@@ -3,11 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 interface QuickStatsProps {
   beds: number;
   baths: number;
-  sqft: string;
+  sqft: string | number;
   parking: number;
 }
 
 export function QuickStats({ beds, baths, sqft, parking }: QuickStatsProps) {
+  // Handle sqft being either a string or number
+  const sqftValue =
+    typeof sqft === "string" ? sqft.split(" ")[0] : sqft?.toString() || "N/A";
+
   return (
     <Card>
       <CardHeader>
@@ -31,7 +35,7 @@ export function QuickStats({ beds, baths, sqft, parking }: QuickStatsProps) {
           </div>
           <div className="text-center p-3 bg-gray-50 rounded-lg">
             <div className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
-              {typeof sqft === "string" ? sqft.split(" ")[0] : sqft}
+              {sqftValue}
             </div>
             <div className="text-sm text-gray-600">sq ft</div>
           </div>

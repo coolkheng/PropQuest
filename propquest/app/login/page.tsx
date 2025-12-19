@@ -5,6 +5,7 @@ import type React from "react";
 import { useState } from "react";
 import axios from "axios";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -52,9 +53,15 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
-            PropQuest
-          </h1>
+          <Link href="/" className="inline-block mb-4">
+            <Image
+              src="/propquest_header_logo.png"
+              alt="PropQuest Logo"
+              width={200}
+              height={60}
+              className="object-contain mx-auto"
+            />
+          </Link>
           <p className="text-gray-600 mt-2">
             Welcome back! Sign in to your account
           </p>

@@ -5,6 +5,7 @@ import { TopBar } from "@/components/top-bar";
 import { MapControls } from "@/components/map-controls";
 import { MapView } from "@/components/map-view";
 import { AiChatPanel } from "@/components/ai-chat-panel";
+import { useSession } from "@/lib/useSession";
 import axios from "axios";
 
 export interface Property {
@@ -27,17 +28,19 @@ export interface Property {
 
 export default function HomePage() {
   const [properties, setProperties] = useState<Property[]>([]); // Lifted state
-  const [isAISearch, setIsAISearch] = useState(false); // Track if properties are from AI search
   const [searchQuery, setSearchQuery] = useState("");
   const [hoveredProperty, setHoveredProperty] = useState<string | null>(null);
+  const { user } = useSession();
 
   useEffect(() => {
     const fetchProperties = async () => {
       try {
-        const res = await axios.get("http://localhost:5001/api/properties");
-        const data: Property[] = res.data;
-        setProperties(data);
-        setIsAISearch(false); // Reset AI search flag for initial load
+        const res = await axios.get(
+          "http://localhost:5001/api/properties?limit=100"
+        );
+        // Handle new API response format
+        const data = res.data.properties || res.data;
+        setProperties(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Error fetching properties:", error);
       }
@@ -65,6 +68,7 @@ export default function HomePage() {
             onFilterClick={handleFilterClick}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            isLoggedIn={!!user}
           />
 
           <MapView
@@ -72,16 +76,11 @@ export default function HomePage() {
             hoveredProperty={hoveredProperty}
             onPropertyHover={setHoveredProperty}
             onPropertyClick={handlePropertyClick}
-            isAISearch={isAISearch}
           />
         </div>
 
         <div className="w-[40%] h-full">
-          <AiChatPanel 
-            properties={properties} 
-            setProperties={setProperties} 
-            setIsAISearch={setIsAISearch}
-          />
+          <AiChatPanel properties={properties} setProperties={setProperties} />
         </div>
       </div>
     </div>

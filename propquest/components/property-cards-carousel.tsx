@@ -25,7 +25,6 @@ interface PropertyCardsCarouselProps {
   hoveredProperty: string | null;
   onPropertyHover: (id: string | null) => void;
   onPropertyClick: (id: string) => void;
-  isAISearch?: boolean;
 }
 
 export function PropertyCardsCarousel({
@@ -33,15 +32,14 @@ export function PropertyCardsCarousel({
   hoveredProperty,
   onPropertyHover,
   onPropertyClick,
-  isAISearch = false,
 }: PropertyCardsCarouselProps) {
-  // Limit to 50 properties for initial load, show all for AI search results
-  const displayProperties = isAISearch ? properties : properties.slice(0, 50);
+  // Ensure properties is always an array
+  const propertyList = Array.isArray(properties) ? properties : [];
 
   return (
     <div className="absolute bottom-4 left-4 right-4">
       <div className="flex space-x-2 overflow-x-auto pb-2">
-        {displayProperties.map((property) => (
+        {propertyList.map((property) => (
           <MapPropertyCard
             key={property._id}
             property={property}
