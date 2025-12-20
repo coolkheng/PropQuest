@@ -20,122 +20,122 @@ app.use(
     origin: process.env.FRONTEND_ORIGIN || "http://localhost:3000",
     credentials: true,
   })
-);app.post("/api/auth/login", async (req, res) => {
+);
+app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
-  
+
   try {
     const db = await connectToDatabase();
-    
+
     // Find user by email
     const user = await db
       .collection("users")
       .findOne({ email: email.toLowerCase() });
-    
+
     // Return generic error (don't reveal if email exists)
     if (!user || !user.is_active) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    
+
     // Compare plain password with hashed password
     const valid = bcrypt.compareSync(password, user.hashed_password);
-    
+
     if (!valid) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    
+
     // Password correct - proceed with login
     // Generate JWT token (see next section)
-    
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ error: "Login failed" });
   }
-});app.post("/api/auth/login", async (req, res) => {
+});
+app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
-  
+
   try {
     const db = await connectToDatabase();
-    
+
     // Find user by email
     const user = await db
       .collection("users")
       .findOne({ email: email.toLowerCase() });
-    
+
     // Return generic error (don't reveal if email exists)
     if (!user || !user.is_active) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    
+
     // Compare plain password with hashed password
     const valid = bcrypt.compareSync(password, user.hashed_password);
-    
+
     if (!valid) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    
+
     // Password correct - proceed with login
     // Generate JWT token (see next section)
-    
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ error: "Login failed" });
   }
-});app.post("/api/auth/login", async (req, res) => {
+});
+app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
-  
+
   try {
     const db = await connectToDatabase();
-    
+
     // Find user by email
     const user = await db
       .collection("users")
       .findOne({ email: email.toLowerCase() });
-    
+
     // Return generic error (don't reveal if email exists)
     if (!user || !user.is_active) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    
+
     // Compare plain password with hashed password
     const valid = bcrypt.compareSync(password, user.hashed_password);
-    
+
     if (!valid) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    
+
     // Password correct - proceed with login
     // Generate JWT token (see next section)
-    
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ error: "Login failed" });
   }
-});app.post("/api/auth/login", async (req, res) => {
+});
+app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
-  
+
   try {
     const db = await connectToDatabase();
-    
+
     // Find user by email
     const user = await db
       .collection("users")
       .findOne({ email: email.toLowerCase() });
-    
+
     // Return generic error (don't reveal if email exists)
     if (!user || !user.is_active) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    
+
     // Compare plain password with hashed password
     const valid = bcrypt.compareSync(password, user.hashed_password);
-    
+
     if (!valid) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    
+
     // Password correct - proceed with login
     // Generate JWT token (see next section)
-    
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ error: "Login failed" });
@@ -293,28 +293,22 @@ app.get("/api/properties", async (req, res) => {
           priceNumeric: {
             $convert: {
               input: {
-                $cond: {
-                  if: { $eq: [{ $type: "$price" }, "string"] },
-                  then: {
+                $replaceAll: {
+                  input: {
                     $replaceAll: {
                       input: {
                         $replaceAll: {
-                          input: {
-                            $replaceAll: {
-                              input: { $ifNull: ["$price", "0"] },
-                              find: "RM",
-                              replacement: "",
-                            },
-                          },
-                          find: ",",
+                          input: { $toString: { $ifNull: ["$price", 0] } },
+                          find: "RM",
                           replacement: "",
                         },
                       },
-                      find: " ",
+                      find: ",",
                       replacement: "",
                     },
                   },
-                  else: "$price",
+                  find: " ",
+                  replacement: "",
                 },
               },
               to: "double",
@@ -325,28 +319,22 @@ app.get("/api/properties", async (req, res) => {
           sqftNumeric: {
             $convert: {
               input: {
-                $cond: {
-                  if: { $eq: [{ $type: "$sqft" }, "string"] },
-                  then: {
+                $replaceAll: {
+                  input: {
                     $replaceAll: {
                       input: {
                         $replaceAll: {
-                          input: {
-                            $replaceAll: {
-                              input: { $ifNull: ["$sqft", "0"] },
-                              find: "sq.ft.",
-                              replacement: "",
-                            },
-                          },
-                          find: ",",
+                          input: { $toString: { $ifNull: ["$sqft", 0] } },
+                          find: "sq.ft.",
                           replacement: "",
                         },
                       },
-                      find: " ",
+                      find: ",",
                       replacement: "",
                     },
                   },
-                  else: "$sqft",
+                  find: " ",
+                  replacement: "",
                 },
               },
               to: "double",
@@ -467,28 +455,22 @@ app.get("/api/properties/personalized", async (req, res) => {
           priceNumeric: {
             $convert: {
               input: {
-                $cond: {
-                  if: { $eq: [{ $type: "$price" }, "string"] },
-                  then: {
+                $replaceAll: {
+                  input: {
                     $replaceAll: {
                       input: {
                         $replaceAll: {
-                          input: {
-                            $replaceAll: {
-                              input: { $ifNull: ["$price", "0"] },
-                              find: "RM",
-                              replacement: "",
-                            },
-                          },
-                          find: ",",
+                          input: { $toString: { $ifNull: ["$price", 0] } },
+                          find: "RM",
                           replacement: "",
                         },
                       },
-                      find: " ",
+                      find: ",",
                       replacement: "",
                     },
                   },
-                  else: "$price",
+                  find: " ",
+                  replacement: "",
                 },
               },
               to: "double",
@@ -499,28 +481,22 @@ app.get("/api/properties/personalized", async (req, res) => {
           sqftNumeric: {
             $convert: {
               input: {
-                $cond: {
-                  if: { $eq: [{ $type: "$sqft" }, "string"] },
-                  then: {
+                $replaceAll: {
+                  input: {
                     $replaceAll: {
                       input: {
                         $replaceAll: {
-                          input: {
-                            $replaceAll: {
-                              input: { $ifNull: ["$sqft", "0"] },
-                              find: "sq.ft.",
-                              replacement: "",
-                            },
-                          },
-                          find: ",",
+                          input: { $toString: { $ifNull: ["$sqft", 0] } },
+                          find: "sq.ft.",
                           replacement: "",
                         },
                       },
-                      find: " ",
+                      find: ",",
                       replacement: "",
                     },
                   },
-                  else: "$sqft",
+                  find: " ",
+                  replacement: "",
                 },
               },
               to: "double",
@@ -1149,7 +1125,7 @@ app.get("/api/properties/:id", async (req, res) => {
       return res.status(404).json({ error: "Property not found" });
     }
 
-     // Transform historical_prices to priceHistory format if it exists
+    // Transform historical_prices to priceHistory format if it exists
     if (
       property.historical_prices &&
       Array.isArray(property.historical_prices)
@@ -1178,7 +1154,7 @@ app.get("/api/properties/:id", async (req, res) => {
     } else {
       property.priceHistory = [];
     }
-    
+
     res.json(property);
   } catch (error) {
     console.error(error);
@@ -1252,15 +1228,15 @@ app.post("/api/properties/search", async (req, res) => {
       matchStage.address = { $regex: filters.location, $options: "i" };
     if (filters.house_type) matchStage.house_type = filters.house_type;
     if (filters.lease_type) matchStage.lease_type = filters.lease_type;
-    
+
     if (filters.furnishing) {
-      if (filters.furnishing.toLowerCase() === 'furnished') {
+      if (filters.furnishing.toLowerCase() === "furnished") {
         matchStage.furnishing = { $regex: /furnished/i };
       } else {
         matchStage.furnishing = filters.furnishing;
       }
     }
-    
+
     if (filters.facilities)
       matchStage.facilities = { $all: filters.facilities };
 
@@ -1274,7 +1250,11 @@ app.post("/api/properties/search", async (req, res) => {
           $toInt: {
             $replaceAll: {
               input: {
-                $replaceAll: { input: "$price", find: "RM ", replacement: "" },
+                $replaceAll: {
+                  input: { $toString: { $ifNull: ["$price", 0] } },
+                  find: "RM ",
+                  replacement: "",
+                },
               },
               find: ",",
               replacement: "",
@@ -1298,7 +1278,11 @@ app.post("/api/properties/search", async (req, res) => {
         sqft_num: {
           $convert: {
             input: {
-              $replaceAll: { input: "$sqft", find: ",", replacement: "" },
+              $replaceAll: {
+                input: { $toString: { $ifNull: ["$sqft", 0] } },
+                find: ",",
+                replacement: "",
+              },
             },
             to: "double",
             onError: 0,
@@ -1360,15 +1344,15 @@ Classify the user's intent into one of these three:
 - "search" (the user wants to find,search properties)
 - "question" (ONLY WHEN the user asks about your job,property info or concepts)
 - "unknown" 
-Return only JSON.`
+Return only JSON.`;
 
-QUESTION_TEXT=`You are an AI property assistant. 
+QUESTION_TEXT = `You are an AI property assistant. 
             Answer user questions related to real estate in Malaysia. 
             Your job scope :  1. Answer property-related questions
 🎯 2. Recommend properties that fit your preferences
 🔍 3. Find property based on your criteria
 📈 4. Show market price trends and insights
-            Provide concise and accurate responses.`
+            Provide concise and accurate responses.`;
 
 PREFERENCES_SEARCH_TEXT = `You are a property assistant. 
             You must collect user preferences step-by-step... 
@@ -1377,8 +1361,7 @@ PREFERENCES_SEARCH_TEXT = `You are a property assistant.
             If the user has no preference, set the value to null.
             If the user is unclear, ask for clarification.
             Give user example options for house_type, lease_type, furnishing, and facilities when asking for preferences.
-            Condo = Condominium`
-
+            Condo = Condominium`;
 
 app.post("/api/chat/classify", async (req, res) => {
   const { message } = req.body;
@@ -1466,10 +1449,10 @@ app.post("/api/chat/preferences", async (req, res) => {
   ];
 
   // Add conversation messages with role
-  conversation.forEach(msg => {
+  conversation.forEach((msg) => {
     message.push({
       role: "user",
-      content: msg.content
+      content: msg.content,
     });
   });
 
@@ -1489,6 +1472,21 @@ app.post("/api/chat/preferences", async (req, res) => {
               intent: {
                 type: "string",
                 enum: ["ask", "search"],
+              },
+              question_asking_preferences: {
+                type: ["string", "null"],
+                enum: [
+                  "price_min",
+                  "price_max",
+                  "beds_min",
+                  "baths_min",
+                  "sqft_min",
+                  "sqft_max",
+                  "house_type",
+                  "lease_type",
+                  "furnishing",
+                  "facilities",
+                ],
               },
               question: {
                 type: ["string", "null"],

@@ -30,6 +30,7 @@ export default function HomePage() {
   const [properties, setProperties] = useState<Property[]>([]); // Lifted state
   const [searchQuery, setSearchQuery] = useState("");
   const [hoveredProperty, setHoveredProperty] = useState<string | null>(null);
+  const [isAISearch, setIsAISearch] = useState<boolean>(false);
   const { user } = useSession();
 
   useEffect(() => {
@@ -76,11 +77,16 @@ export default function HomePage() {
             hoveredProperty={hoveredProperty}
             onPropertyHover={setHoveredProperty}
             onPropertyClick={handlePropertyClick}
+            isAISearch={isAISearch}
           />
         </div>
 
         <div className="w-[40%] h-full">
-          <AiChatPanel properties={properties} setProperties={setProperties} />
+          <AiChatPanel
+            properties={properties}
+            setProperties={setProperties}
+            setIsAISearch={setIsAISearch}
+          />
         </div>
       </div>
     </div>
