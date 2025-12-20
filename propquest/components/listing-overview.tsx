@@ -1,3 +1,5 @@
+"use client";
+
 import { MapPin, Calendar, Hash } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"

@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useRef, useState } from "react";
 import { loadModules } from "esri-loader";
 
@@ -249,7 +251,14 @@ export function MapBackground({
                         <div><strong>Sqft:</strong> ${attrs.sqft ?? "-"}</div>
                         ${
                           attrs._id
-                            ? `<div style="margin-top:6px;"><a href="${`/property/${attrs._id}`}">View listing</a></div>`
+                            ? `<div style="margin-top:10px;">
+                                <a href="localhost:3000/property/${attrs._id}" 
+                                   style="display:inline-block;padding:8px 16px;background:linear-gradient(to right, #2563eb, #3b82f6, #60a5fa);color:white;text-decoration:none;border-radius:6px;font-weight:600;text-align:center;transition:opacity 0.2s;"
+                                   onmouseover="this.style.opacity='0.9'" 
+                                   onmouseout="this.style.opacity='1'">
+                                  View Full Details →
+                                </a>
+                              </div>`
                             : ""
                         }
                       </div>
