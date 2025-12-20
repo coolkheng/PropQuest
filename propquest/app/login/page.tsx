@@ -53,13 +53,18 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <Image
-            src="/propquest_header_logo.png"
-            alt="PropQuest Logo"
-            width={300}
-            height={50}
-            className="object-contain mx-auto"
-          />
+          <Link
+            href="/"
+            className="inline-block cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            <Image
+              src="/propquest_header_logo.png"
+              alt="PropQuest Logo"
+              width={300}
+              height={50}
+              className="object-contain mx-auto"
+            />
+          </Link>
           <p className="text-gray-700 mt-2 text-lg font-bold">
             Welcome back! Sign in to your account
           </p>

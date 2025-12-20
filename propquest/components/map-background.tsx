@@ -41,10 +41,12 @@ export function MapBackground({
   const [mapError, setMapError] = useState<string | null>(null);
   const failedGeocodesRef = useRef(0);
   const MAX_GEOCODE_FAILURES = 10;
+  const mapLoadStartTimeRef = useRef<number>(0);
 
   // Effect for initial map setup and geocoding - runs only when Property changes
   useEffect(() => {
     let moveHandler: any | null = null;
+    mapLoadStartTimeRef.current = performance.now();
     setIsMapLoading(true);
     setMapError(null);
     failedGeocodesRef.current = 0;
@@ -78,6 +80,11 @@ export function MapBackground({
         } catch {}
 
         // Map loaded successfully
+        const loadTime = (
+          (performance.now() - mapLoadStartTimeRef.current) /
+          1000
+        ).toFixed(2);
+        console.log(`⏱️ MAP PERFORMANCE: Map rendered in ${loadTime} seconds`);
         setIsMapLoading(false);
 
         // Use the geocoder

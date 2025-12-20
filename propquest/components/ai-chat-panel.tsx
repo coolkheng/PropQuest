@@ -49,6 +49,7 @@ export function AiChatPanel({
   const question = useRef("");
   const question_asking_preferences = useRef("");
   const conversation = useRef<Array<{ content: string }>>([]);
+  const chatStartTimeRef = useRef<number>(0);
 
   function addMessage(content: string) {
     conversation.current.push({ content });
@@ -104,6 +105,8 @@ export function AiChatPanel({
   const handleSendMessage = async () => {
     if (aiRequest.trim() === "") return;
 
+    chatStartTimeRef.current = performance.now();
+
     const newUserMessage: ChatMessage = {
       id: Date.now().toString(),
       type: "user",
@@ -142,6 +145,14 @@ export function AiChatPanel({
           setProperties(properties); // Update the properties state with the API response
           setIsAISearch(true); // Mark as AI search results
 
+          const responseTime = (
+            (performance.now() - chatStartTimeRef.current) /
+            1000
+          ).toFixed(2);
+          console.log(
+            `⏱️ CHATBOT PERFORMANCE: Response received in ${responseTime} seconds`
+          );
+
           const aiResponse: ChatMessage = {
             id: (Date.now() + 1).toString(),
             type: "ai",
@@ -158,6 +169,14 @@ export function AiChatPanel({
             }
           );
 
+          const responseTime = (
+            (performance.now() - chatStartTimeRef.current) /
+            1000
+          ).toFixed(2);
+          console.log(
+            `⏱️ CHATBOT PERFORMANCE: Response received in ${responseTime} seconds`
+          );
+
           const aiResponse: ChatMessage = {
             id: (Date.now() + 1).toString(),
             type: "ai",
@@ -167,6 +186,14 @@ export function AiChatPanel({
 
           setMessages((prev) => [...prev, aiResponse]);
         } else if (intent === "unknown") {
+          const responseTime = (
+            (performance.now() - chatStartTimeRef.current) /
+            1000
+          ).toFixed(2);
+          console.log(
+            `⏱️ CHATBOT PERFORMANCE: Response received in ${responseTime} seconds`
+          );
+
           const aiResponse: ChatMessage = {
             id: (Date.now() + 1).toString(),
             type: "ai",
@@ -229,6 +256,14 @@ export function AiChatPanel({
           });
 
           if (intent === "ask" && backendQuestion) {
+            const responseTime = (
+              (performance.now() - chatStartTimeRef.current) /
+              1000
+            ).toFixed(2);
+            console.log(
+              `⏱️ CHATBOT PERFORMANCE: Response received in ${responseTime} seconds`
+            );
+
             const aiQuestion: ChatMessage = {
               id: (Date.now() + 1).toString(),
               type: "ai",
@@ -251,6 +286,14 @@ export function AiChatPanel({
             const properties = response.data;
             setProperties(properties);
             setIsAISearch(true);
+
+            const responseTime = (
+              (performance.now() - chatStartTimeRef.current) /
+              1000
+            ).toFixed(2);
+            console.log(
+              `⏱️ CHATBOT PERFORMANCE: Response received in ${responseTime} seconds`
+            );
 
             const aiResponse: ChatMessage = {
               id: (Date.now() + 1).toString(),
