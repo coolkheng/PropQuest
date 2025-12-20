@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import Image from "next/image";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -174,16 +175,19 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-block mb-4">
+          <Link
+            href="/"
+            className="inline-block cursor-pointer hover:opacity-80 transition-opacity"
+          >
             <Image
               src="/propquest_header_logo.png"
               alt="PropQuest Logo"
-              width={200}
-              height={60}
+              width={300}
+              height={50}
               className="object-contain mx-auto"
             />
           </Link>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-700 mt-2 text-xl font-bold">
             Create your account to get started
           </p>
         </div>

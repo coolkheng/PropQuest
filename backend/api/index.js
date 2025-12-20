@@ -20,7 +20,127 @@ app.use(
     origin: process.env.FRONTEND_ORIGIN || "http://localhost:3000",
     credentials: true,
   })
-);
+);app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+  
+  try {
+    const db = await connectToDatabase();
+    
+    // Find user by email
+    const user = await db
+      .collection("users")
+      .findOne({ email: email.toLowerCase() });
+    
+    // Return generic error (don't reveal if email exists)
+    if (!user || !user.is_active) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+    
+    // Compare plain password with hashed password
+    const valid = bcrypt.compareSync(password, user.hashed_password);
+    
+    if (!valid) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+    
+    // Password correct - proceed with login
+    // Generate JWT token (see next section)
+    
+  } catch (error) {
+    console.error("Login error:", error);
+    return res.status(500).json({ error: "Login failed" });
+  }
+});app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+  
+  try {
+    const db = await connectToDatabase();
+    
+    // Find user by email
+    const user = await db
+      .collection("users")
+      .findOne({ email: email.toLowerCase() });
+    
+    // Return generic error (don't reveal if email exists)
+    if (!user || !user.is_active) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+    
+    // Compare plain password with hashed password
+    const valid = bcrypt.compareSync(password, user.hashed_password);
+    
+    if (!valid) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+    
+    // Password correct - proceed with login
+    // Generate JWT token (see next section)
+    
+  } catch (error) {
+    console.error("Login error:", error);
+    return res.status(500).json({ error: "Login failed" });
+  }
+});app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+  
+  try {
+    const db = await connectToDatabase();
+    
+    // Find user by email
+    const user = await db
+      .collection("users")
+      .findOne({ email: email.toLowerCase() });
+    
+    // Return generic error (don't reveal if email exists)
+    if (!user || !user.is_active) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+    
+    // Compare plain password with hashed password
+    const valid = bcrypt.compareSync(password, user.hashed_password);
+    
+    if (!valid) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+    
+    // Password correct - proceed with login
+    // Generate JWT token (see next section)
+    
+  } catch (error) {
+    console.error("Login error:", error);
+    return res.status(500).json({ error: "Login failed" });
+  }
+});app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+  
+  try {
+    const db = await connectToDatabase();
+    
+    // Find user by email
+    const user = await db
+      .collection("users")
+      .findOne({ email: email.toLowerCase() });
+    
+    // Return generic error (don't reveal if email exists)
+    if (!user || !user.is_active) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+    
+    // Compare plain password with hashed password
+    const valid = bcrypt.compareSync(password, user.hashed_password);
+    
+    if (!valid) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+    
+    // Password correct - proceed with login
+    // Generate JWT token (see next section)
+    
+  } catch (error) {
+    console.error("Login error:", error);
+    return res.status(500).json({ error: "Login failed" });
+  }
+});
 app.use(cookieParser());
 
 // Middleware to parse JSON
@@ -39,6 +159,8 @@ async function connectToDatabase() {
     throw error;
   }
 }
+
+// OpenAI setup
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Routes
@@ -1094,20 +1216,27 @@ app.post("/api/properties/search", async (req, res) => {
     const db = await connectToDatabase();
 
     // Stage 1: Basic filters
-    // Still need to fix the condo shortform issue
-    // Make it match Condo, Condos, Condominium
     const matchStage = {};
     if (filters.location)
       matchStage.address = { $regex: filters.location, $options: "i" };
     if (filters.house_type) matchStage.house_type = filters.house_type;
     if (filters.lease_type) matchStage.lease_type = filters.lease_type;
-    if (filters.furnishing) matchStage.furnishing = filters.furnishing;
+    
+    if (filters.furnishing) {
+      if (filters.furnishing.toLowerCase() === 'furnished') {
+        matchStage.furnishing = { $regex: /furnished/i };
+      } else {
+        matchStage.furnishing = filters.furnishing;
+      }
+    }
+    
     if (filters.facilities)
       matchStage.facilities = { $all: filters.facilities };
 
     const pipeline = [{ $match: matchStage }];
 
     // Stage 2: Convert numeric fields
+
     pipeline.push({
       $addFields: {
         price_num: {
@@ -1149,6 +1278,7 @@ app.post("/api/properties/search", async (req, res) => {
     });
 
     // Stage 3: Numeric filters
+
     const numericMatch = {};
     if (filters.price_min != null || filters.price_max != null) {
       numericMatch.price_num = {};
@@ -1194,6 +1324,31 @@ app.post("/api/properties/search", async (req, res) => {
   }
 });
 
+INTENT_CLASSIFICATION_TEXT = `You are an intent classifier for a property chatbot.
+Classify the user's intent into one of these three:
+- "search" (the user wants to find,search properties)
+- "question" (ONLY WHEN the user asks about your job,property info or concepts)
+- "unknown" 
+Return only JSON.`
+
+QUESTION_TEXT=`You are an AI property assistant. 
+            Answer user questions related to real estate in Malaysia. 
+            Your job scope :  1. Answer property-related questions
+🎯 2. Recommend properties that fit your preferences
+🔍 3. Find property based on your criteria
+📈 4. Show market price trends and insights
+            Provide concise and accurate responses.`
+
+PREFERENCES_SEARCH_TEXT = `You are a property assistant. 
+            You must collect user preferences step-by-step... 
+            ALWAYS return in JSON format
+            When all main preferences are filled, say 'Search' in intent and provide the full preferences.
+            If the user has no preference, set the value to null.
+            If the user is unclear, ask for clarification.
+            Give user example options for house_type, lease_type, furnishing, and facilities when asking for preferences.
+            Condo = Condominium`
+
+
 app.post("/api/chat/classify", async (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ error: "Message is required" });
@@ -1204,14 +1359,7 @@ app.post("/api/chat/classify", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `
-You are an intent classifier for a property chatbot.
-Classify the user's intent into one of these three:
-- "search" (the user wants to find,search properties)
-- "question" (the user asks about property info or concepts)
-- "unknown" 
-Return only JSON.
-      `,
+          content: INTENT_CLASSIFICATION_TEXT,
         },
         { role: "user", content: message },
       ],
@@ -1255,9 +1403,7 @@ app.post("/api/chat/questions", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `You are an AI property assistant. 
-            Answer user questions related to real estate in Malaysia. 
-            Provide concise and accurate responses.`,
+          content: QUESTION_TEXT,
         },
         { role: "user", content: message },
       ],
@@ -1284,18 +1430,17 @@ app.post("/api/chat/preferences", async (req, res) => {
   const message = [
     {
       role: "system",
-      content: `You are a property assistant. 
-            You must collect user preferences step-by-step... 
-            ALWAYS return in JSON format
-            When all main preferences are filled, say 'Search' in intent and provide the full preferences.
-            If the user has no preference, set the value to null.
-            If the user is unclear, ask for clarification.
-            Condo = Condominium
-            `,
+      content: PREFERENCES_SEARCH_TEXT,
     },
   ];
 
-  message.push(...conversation);
+  // Add conversation messages with role
+  conversation.forEach(msg => {
+    message.push({
+      role: "user",
+      content: msg.content
+    });
+  });
 
   try {
     const openaiResponse = await openai.chat.completions.create({
@@ -1441,6 +1586,7 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     const valid = bcrypt.compareSync(password, user.hashed_password);
+
     if (!valid) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
