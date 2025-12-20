@@ -240,7 +240,7 @@ export function AiChatPanel({
             // Search for properties using the collected preferences
             const normalizedPreferences = normalizePreferences(preferences);
             console.log("Normalized preferences:", normalizedPreferences);
-            
+
             const response = await axios.post(
               "http://localhost:5001/api/properties/search",
               {
@@ -353,23 +353,26 @@ export function AiChatPanel({
   }
 
   // Function to normalize preferences for database search
-  function normalizePreferences(prefs: Record<string, any>): Record<string, any> {
+  function normalizePreferences(
+    prefs: Record<string, any>
+  ): Record<string, any> {
     const normalized = { ...prefs };
 
-    // Helper function to capitalize first letter of each word
+    // Helper function to capitalize first letter only
     const capitalizeWords = (str: string): string => {
-      return str
-        .split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(' ');
+      return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
     };
 
     // Normalize house_type
     if (normalized.house_type) {
       let houseType = normalized.house_type.toLowerCase();
       // Convert "condo" to "condominium"
-      if (houseType === 'condo' || houseType === 'condos' || houseType === 'Condo') {
-        normalized.house_type = 'Condominium';
+      if (
+        houseType === "condo" ||
+        houseType === "condos" ||
+        houseType === "Condo"
+      ) {
+        normalized.house_type = "Condominium";
       } else {
         normalized.house_type = capitalizeWords(normalized.house_type);
       }

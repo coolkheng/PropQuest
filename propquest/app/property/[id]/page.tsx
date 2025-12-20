@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import axios from "axios";
 import { PropertyDetailHeader } from "@/components/property-detail-header";
 import { PropertyMainContent } from "@/components/property-main-content";
 import { PropertySidebar } from "@/components/property-sidebar";
@@ -27,8 +28,6 @@ interface Property {
     price: number;
   }>;
 }
-
-
 
 export default function PropertyDetailPage({
   params,
@@ -66,10 +65,10 @@ export default function PropertyDetailPage({
         setLoading(true);
         const { id } = await params;
 
-        const res = await fetch(`http://localhost:5001/api/properties/${id}`);
-        if (!res.ok) throw new Error("Failed to fetch property data");
-        const data = await res.json();
-        setPropertyData(data);
+        const response = await axios.get(
+          `http://localhost:5001/api/properties/${id}`
+        );
+        setPropertyData(response.data);
       } catch (err) {
         console.error(err);
         setError("Property not found or server error");
@@ -88,19 +87,16 @@ export default function PropertyDetailPage({
       <div className="max-w-7xl mx-auto px-4 py-6">
         {propertyData && (
           <>
-           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <PropertyMainContent propertyData={propertyData} />
-            <PropertySidebar propertyData={propertyData} />
-          </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <PropertyMainContent propertyData={propertyData} />
+              <PropertySidebar propertyData={propertyData} />
+            </div>
 
-          <div className="mt-8">
-          <PriceHistory priceHistory={propertyData?.priceHistory || []} />
-        </div>
+            <div className="mt-8">
+              <PriceHistory priceHistory={propertyData?.priceHistory || []} />
+            </div>
           </>
-         
         )}
-
-        
       </div>
     </div>
   );

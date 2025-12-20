@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loadModules } from "esri-loader";
 
 interface MapBackgroundProps {
@@ -37,10 +37,17 @@ export function MapBackground({
   const viewRef = useRef<any>(null);
   const graphicsMapRef = useRef<Map<string, any>>(new Map());
   const lastHoveredRef = useRef<string | null>(null);
+  const [isMapLoading, setIsMapLoading] = useState(true);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const failedGeocodesRef = useRef(0);
+  const MAX_GEOCODE_FAILURES = 10;
 
   // Effect for initial map setup and geocoding - runs only when Property changes
   useEffect(() => {
     let moveHandler: any | null = null;
+    setIsMapLoading(true);
+    setMapError(null);
+    failedGeocodesRef.current = 0;
 
     loadModules(
       [
@@ -51,71 +58,119 @@ export function MapBackground({
         "esri/Graphic",
       ],
       { css: true }
-    ).then(([esriConfig, Map, MapView, locator, Graphic]) => {
-      // Use your API key from .env
-      esriConfig.apiKey = process.env.NEXT_PUBLIC_ARCGIS_API_KEY;
+    )
+      .then(([esriConfig, Map, MapView, locator, Graphic]) => {
+        // Use your API key from .env
+        esriConfig.apiKey = process.env.NEXT_PUBLIC_ARCGIS_API_KEY;
 
-      const map = new Map({ basemap: "streets" });
+        const map = new Map({ basemap: "streets" });
 
-      viewRef.current = new MapView({
-        container: mapRef.current,
-        map: map,
-        center: [101.6869, 3.139], // default center (Kuala Lumpur)
-        zoom: 15,
-      });
+        viewRef.current = new MapView({
+          container: mapRef.current,
+          map: map,
+          center: [101.6869, 3.139], // default center (Kuala Lumpur)
+          zoom: 15,
+        });
 
-      // Disable default auto-open on click; we'll control popup manually on hover
-      try {
-        viewRef.current.popup.autoOpenEnabled = false;
-      } catch {}
+        // Disable default auto-open on click; we'll control popup manually on hover
+        try {
+          viewRef.current.popup.autoOpenEnabled = false;
+        } catch {}
 
-      // Use the geocoder
-      // Limit to 50 properties for initial map loading, but show all for AI search results
-      const propertiesToGeocode = isAISearch ? Property : Property.slice(0, 50);
-      console.log("Geocoding properties:", propertiesToGeocode.length);
+        // Map loaded successfully
+        setIsMapLoading(false);
 
-      // Clear previous graphics
-      graphicsMapRef.current.clear();
+        // Use the geocoder
+        // Limit to 50 properties for initial map loading, but show all for AI search results
+        const propertiesToGeocode = isAISearch
+          ? Property
+          : Property.slice(0, 50);
+        console.log("Geocoding properties:", propertiesToGeocode.length);
 
-      let isFirstProperty = true;
+        // Clear previous graphics
+        graphicsMapRef.current.clear();
 
-      // Loop through properties
-      propertiesToGeocode.forEach((property) => {
-        locator
-          .addressToLocations(geocodeUrl, {
-            address: { address: property.address },
-            outFields: ["*"],
-          })
-          .then((results: any[]) => {
-            if (results.length) {
-              const location = results[0].location;
+        let isFirstProperty = true;
 
-              // Center map on first property
-              if (isFirstProperty) {
-                viewRef.current.center = [location.x, location.y];
-                isFirstProperty = false;
+        // Loop through properties
+        propertiesToGeocode.forEach((property) => {
+          locator
+            .addressToLocations(geocodeUrl, {
+              address: { address: property.address },
+              outFields: ["*"],
+            })
+            .then((results: any[]) => {
+              if (results.length) {
+                const location = results[0].location;
+
+                // Center map on first property
+                if (isFirstProperty) {
+                  viewRef.current.center = [location.x, location.y];
+                  isFirstProperty = false;
+                }
+
+                const point = {
+                  type: "point",
+                  longitude: location.x,
+                  latitude: location.y,
+                };
+
+                const markerSymbol = {
+                  type: "picture-marker",
+                  url: "/location-pin.png", // Start with default red pin
+                  width: "40px",
+                  height: "40px",
+                };
+
+                const graphic = new Graphic({
+                  geometry: point,
+                  symbol: markerSymbol,
+                  attributes: {
+                    _id: property._id, // Add property ID to identify marker
+                    title: property.title,
+                    address: property.address,
+                    price: property.price,
+                    beds: property.beds,
+                    baths: property.baths,
+                    sqft: property.sqft,
+                    url: property.url,
+                    image:
+                      Array.isArray(property.images) &&
+                      property.images.length > 0
+                        ? property.images[0]
+                        : null,
+                  },
+                });
+
+                viewRef.current.graphics.add(graphic);
+                graphicsMapRef.current.set(property._id, graphic); // Store reference to update later
               }
+            })
+            .catch((error: any) => {
+              console.error(`Geocoding failed for ${property.address}:`, error);
+              failedGeocodesRef.current++;
 
-              const point = {
+              // Show fallback marker at city center with special styling
+              const fallbackPoint = {
                 type: "point",
-                longitude: location.x,
-                latitude: location.y,
+                longitude: 101.6869, // Kuala Lumpur center
+                latitude: 3.139,
               };
 
-              const markerSymbol = {
+              const fallbackSymbol = {
                 type: "picture-marker",
-                url: "/location-pin.png", // Start with default red pin
-                width: "40px",
-                height: "40px",
+                url: "/location-pin.png", // Same icon but will show as unavailable in popup
+                width: "35px",
+                height: "35px",
               };
 
-              const graphic = new Graphic({
-                geometry: point,
-                symbol: markerSymbol,
+              const fallbackGraphic = new Graphic({
+                geometry: fallbackPoint,
+                symbol: fallbackSymbol,
                 attributes: {
-                  _id: property._id, // Add property ID to identify marker
+                  _id: property._id,
                   title: property.title,
-                  address: property.address,
+                  address: `${property.address} (Location unavailable)`,
                   price: property.price,
                   beds: property.beds,
                   baths: property.baths,
@@ -125,49 +180,55 @@ export function MapBackground({
                     Array.isArray(property.images) && property.images.length > 0
                       ? property.images[0]
                       : null,
+                  _geocodingFailed: true,
                 },
               });
 
-              viewRef.current.graphics.add(graphic);
-              graphicsMapRef.current.set(property._id, graphic); // Store reference to update later
-            }
-          })
-          .catch((error: any) => {
-            console.error(`Geocoding failed for ${property.address}:`, error);
-          });
-      });
+              viewRef.current.graphics.add(fallbackGraphic);
+              graphicsMapRef.current.set(property._id, fallbackGraphic);
 
-      // Hover-only popup using pointer-move and hitTest
-      moveHandler = viewRef.current.on("pointer-move", (event: any) => {
-        viewRef.current
-          .hitTest(event)
-          .then((response: any) => {
-            const hit = response.results?.find((r: any) => r.graphic);
-            if (hit && hit.graphic && hit.graphic.attributes) {
-              const attrs = hit.graphic.attributes;
-
-              // Add scale-up animation on hover
-              const graphic = hit.graphic;
-              if (!graphic.originalSize) {
-                graphic.originalSize = {
-                  width: graphic.symbol.width,
-                  height: graphic.symbol.height,
-                };
+              // Show warning if too many failures (rate limit)
+              if (failedGeocodesRef.current >= MAX_GEOCODE_FAILURES) {
+                console.warn(
+                  "Multiple geocoding failures detected. Map service may be rate-limited."
+                );
               }
-              graphic.symbol = {
-                type: "picture-marker",
-                url: graphic.symbol.url,
-                width: "45px",
-                height: "45px",
-              };
+            });
+        });
 
-              const imgHtml = attrs.image
-                ? `<img src="${attrs.image}" alt="${attrs.title ?? "Property"}"
+        // Hover-only popup using pointer-move and hitTest
+        moveHandler = viewRef.current.on("pointer-move", (event: any) => {
+          viewRef.current
+            .hitTest(event)
+            .then((response: any) => {
+              const hit = response.results?.find((r: any) => r.graphic);
+              if (hit && hit.graphic && hit.graphic.attributes) {
+                const attrs = hit.graphic.attributes;
+
+                // Add scale-up animation on hover
+                const graphic = hit.graphic;
+                if (!graphic.originalSize) {
+                  graphic.originalSize = {
+                    width: graphic.symbol.width,
+                    height: graphic.symbol.height,
+                  };
+                }
+                graphic.symbol = {
+                  type: "picture-marker",
+                  url: graphic.symbol.url,
+                  width: "45px",
+                  height: "45px",
+                };
+
+                const imgHtml = attrs.image
+                  ? `<img src="${attrs.image}" alt="${
+                      attrs.title ?? "Property"
+                    }"
                      style="width:110px;height:78px;object-fit:cover;border-radius:8px;margin-right:12px;" />`
-                : "";
-              viewRef.current.popup.open({
-                title: attrs.title || "Property",
-                content: `
+                  : "";
+                viewRef.current.popup.open({
+                  title: attrs.title || "Property",
+                  content: `
                   <div style="line-height:1.4">
                     <div style="display:flex;align-items:flex-start;">
                       ${imgHtml}
@@ -188,32 +249,37 @@ export function MapBackground({
                     </div>
                   </div>
                 `,
-                location: hit.graphic.geometry,
-              });
-            } else {
-              viewRef.current.popup.close();
+                  location: hit.graphic.geometry,
+                });
+              } else {
+                viewRef.current.popup.close();
 
-              // Reset size of previously hovered graphic
-              viewRef.current.graphics.items.forEach((graphic: any) => {
-                if (
-                  graphic.originalSize &&
-                  graphic.symbol.url === "/location-pin.png"
-                ) {
-                  graphic.symbol = {
-                    type: "picture-marker",
-                    url: "/location-pin.png",
-                    width: "40px",
-                    height: "40px",
-                  };
-                }
-              });
-            }
-          })
-          .catch(() => {
-            // ignore hitTest errors
-          });
+                // Reset size of previously hovered graphic
+                viewRef.current.graphics.items.forEach((graphic: any) => {
+                  if (
+                    graphic.originalSize &&
+                    graphic.symbol.url === "/location-pin.png"
+                  ) {
+                    graphic.symbol = {
+                      type: "picture-marker",
+                      url: "/location-pin.png",
+                      width: "40px",
+                      height: "40px",
+                    };
+                  }
+                });
+              }
+            })
+            .catch(() => {
+              // ignore hitTest errors
+            });
+        });
+      })
+      .catch((error) => {
+        console.error("Map initialization failed:", error);
+        setMapError("Unable to load map. Please refresh the page.");
+        setIsMapLoading(false);
       });
-    });
 
     // Cleanup: remove pointer handler and destroy the view
     return () => {
@@ -315,5 +381,45 @@ export function MapBackground({
     // The highlighted marker stays until user hovers another property
   }, [hoveredProperty]); // Only re-run when hoveredProperty changes
 
-  return <div ref={mapRef} className="w-full h-full rounded-xl shadow-lg" />;
+  return (
+    <div className="relative w-full h-full">
+      {/* Loading State */}
+      {isMapLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-xl z-10">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600">Loading map...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {mapError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-xl z-10">
+          <div className="text-center p-6">
+            <p className="text-red-600 mb-4">{mapError}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Rate Limit Warning */}
+      {failedGeocodesRef.current >= MAX_GEOCODE_FAILURES && !mapError && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-2 rounded-lg shadow-lg z-10">
+          <p className="text-sm">
+            ⚠️ Some properties may not display correctly. Map service is
+            experiencing high demand.
+          </p>
+        </div>
+      )}
+
+      {/* Map Container */}
+      <div ref={mapRef} className="w-full h-full rounded-xl shadow-lg" />
+    </div>
+  );
 }
