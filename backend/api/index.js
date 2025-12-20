@@ -282,7 +282,7 @@ app.get("/api/properties", async (req, res) => {
 
     // Get total count for pagination info
     const totalCount = await db
-      .collection("properties19nov")
+      .collection("propertieswithprice")
       .countDocuments(query);
 
     // Use aggregation pipeline to handle type conversion for sorting
@@ -369,7 +369,7 @@ app.get("/api/properties", async (req, res) => {
 
     // Fetch paginated properties using aggregation
     const properties = await db
-      .collection("properties19nov")
+      .collection("propertieswithprice")
       .aggregate(pipeline)
       .toArray();
 
@@ -1076,7 +1076,7 @@ app.get("/api/properties/personalized", async (req, res) => {
     // Get total count of scored properties
     console.log("Running aggregation pipeline...");
     const scoredProperties = await db
-      .collection("properties19nov")
+      .collection("propertieswithprice")
       .aggregate(pipeline)
       .toArray();
     console.log(`Found ${scoredProperties.length} properties with score > 0`);
@@ -1122,7 +1122,7 @@ app.get("/api/properties/personalized", async (req, res) => {
 app.get("/api/properties/:id", async (req, res) => {
   try {
     const db = await connectToDatabase();
-    const property = await db.collection("properties19nov").findOne(
+    const property = await db.collection("propertieswithprice").findOne(
       { _id: new ObjectId(req.params.id) },
       {
         projection: {
@@ -1140,6 +1140,7 @@ app.get("/api/properties/:id", async (req, res) => {
           date_listed: 1,
           images: 1,
           facilities: 1,
+          historical_prices: 1,
         },
       }
     );
@@ -1148,6 +1149,36 @@ app.get("/api/properties/:id", async (req, res) => {
       return res.status(404).json({ error: "Property not found" });
     }
 
+     // Transform historical_prices to priceHistory format if it exists
+    if (
+      property.historical_prices &&
+      Array.isArray(property.historical_prices)
+    ) {
+      property.priceHistory = property.historical_prices
+        .map((entry) => {
+          // Extract numeric price value from string like "RM 1.1M" or "RM 640K"
+          let priceNum = 0;
+          if (entry.price) {
+            const priceStr = entry.price.replace(/RM\s*/i, "").trim();
+            if (priceStr.endsWith("M")) {
+              priceNum = parseFloat(priceStr) * 1000000;
+            } else if (priceStr.endsWith("K")) {
+              priceNum = parseFloat(priceStr) * 1000;
+            } else {
+              priceNum = parseFloat(priceStr.replace(/,/g, ""));
+            }
+          }
+
+          return {
+            date: entry.date || "",
+            price: Math.round(priceNum),
+          };
+        })
+        .reverse(); // Reverse to show chronological order (oldest first)
+    } else {
+      property.priceHistory = [];
+    }
+    
     res.json(property);
   } catch (error) {
     console.error(error);
@@ -1314,7 +1345,7 @@ app.post("/api/properties/search", async (req, res) => {
     });
     console.log("Aggregation Pipeline:", JSON.stringify(pipeline, null, 2));
     const results = await db
-      .collection("properties19nov")
+      .collection("propertieswithprice")
       .aggregate(pipeline)
       .toArray();
     res.json(results);

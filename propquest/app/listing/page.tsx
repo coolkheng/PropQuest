@@ -95,8 +95,8 @@ export default function ListingPage() {
         );
 
         setProperties(res.data.properties || []);
-        setTotalPages(res.data.pagination.totalPages || 0);
-        setTotalResults(res.data.pagination.totalCount || 0);
+        setTotalPages(res.data.pagination?.totalPages || 0);
+        setTotalResults(res.data.pagination?.totalCount || 0);
       } catch (error) {
         console.error("Error fetching properties:", error);
         setProperties([]);
