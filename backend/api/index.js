@@ -111,6 +111,7 @@ app.post("/api/auth/login", async (req, res) => {
     return res.status(500).json({ error: "Login failed" });
   }
 });
+
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
 

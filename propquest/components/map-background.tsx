@@ -249,7 +249,7 @@ export function MapBackground({
                         <div><strong>Sqft:</strong> ${attrs.sqft ?? "-"}</div>
                         ${
                           attrs._id
-                            ? `<div style="margin-top:6px;"><a href="${`/property/${attrs._id}`}">View listing</a></div>`
+                            ? `<div style="margin-top:6px;"><a href="${`http://localhost:3000/property/${attrs._id}`}">View listing</a></div>`
                             : ""
                         }
                       </div>
