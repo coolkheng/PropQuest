@@ -237,54 +237,66 @@ export default function ListingPage() {
             />
 
             {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-8 mb-6">
-                {/* Previous Button */}
-                <Button
-                  variant="outline"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="px-3 py-2"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </Button>
+            <div className="flex items-center justify-center gap-2 mt-8 mb-6">
+              {totalPages > 1 ? (
+                <>
+                  {/* Previous Button */}
+                  <Button
+                    variant="outline"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-2"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
 
-                {/* Page Numbers */}
-                <div className="flex items-center gap-1">
-                  {getPageNumbers().map((page, index) => (
-                    <div key={index}>
-                      {page === "..." ? (
-                        <span className="px-3 py-2 text-gray-400">...</span>
-                      ) : (
-                        <Button
-                          variant={currentPage === page ? "default" : "outline"}
-                          onClick={() => handlePageChange(page as number)}
-                          className={`px-3 py-2 min-w-[40px] ${
-                            currentPage === page
-                              ? "bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 text-white"
-                              : ""
-                          }`}
-                        >
-                          {page}
-                        </Button>
-                      )}
-                    </div>
-                  ))}
+                  {/* Page Numbers */}
+                  <div className="flex items-center gap-1">
+                    {getPageNumbers().map((page, index) => (
+                      <div key={index}>
+                        {page === "..." ? (
+                          <span className="px-3 py-2 text-gray-400">...</span>
+                        ) : (
+                          <Button
+                            variant={currentPage === page ? "default" : "outline"}
+                            onClick={() => handlePageChange(page as number)}
+                            className={`px-3 py-2 min-w-[40px] ${
+                              currentPage === page
+                                ? "bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 text-white"
+                                : ""
+                            }`}
+                          >
+                            {page}
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Next Button */}
+                  <Button
+                    variant="outline"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-2"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : (
+                /* Single page indicator */
+                <div className="px-3 py-2">
+                  <Button
+                    variant="default"
+                    className="px-3 py-2 min-w-[40px] bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 text-white cursor-default"
+                  >
+                    1
+                  </Button>
                 </div>
-
-                {/* Next Button */}
-                <Button
-                  variant="outline"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-2"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Results Info */}
             {displayedProperties.length > 0 && (
