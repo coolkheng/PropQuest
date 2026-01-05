@@ -79,7 +79,10 @@ app.get("/api/properties", async (req, res) => {
     // Location filter (separate from search) - also uses strict word-boundary
     if (req.query.location) {
       const locationTerm = req.query.location.trim();
-      const escapedLocation = locationTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const escapedLocation = locationTerm.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      );
       const locationRegex = new RegExp(
         `(^|\\s|,|/|-)${escapedLocation}(?=\\s|,|/|-|$)`,
         "i"
@@ -104,21 +107,15 @@ app.get("/api/properties", async (req, res) => {
       query.$and = query.$and || [];
       if (req.query.minPrice) {
         query.$and.push({
-          $expr: {
-            $gte: [
-              { $toDouble: { $ifNull: ["$price", "0"] } },
-              parseFloat(req.query.minPrice),
-            ],
+          price: {
+            $gte: parseFloat(req.query.minPrice),
           },
         });
       }
       if (req.query.maxPrice) {
         query.$and.push({
-          $expr: {
-            $lte: [
-              { $toDouble: { $ifNull: ["$price", "0"] } },
-              parseFloat(req.query.maxPrice),
-            ],
+          price: {
+            $lte: parseFloat(req.query.maxPrice),
           },
         });
       }
@@ -171,7 +168,7 @@ app.get("/api/properties", async (req, res) => {
 
       switch (req.query.sortBy) {
         case "price":
-          sortStage = { priceNumeric: direction };
+          sortStage = { price: direction };
           break;
         case "area":
           sortStage = { sqftNumeric: direction };
@@ -188,7 +185,7 @@ app.get("/api/properties", async (req, res) => {
 
     // Get total count for pagination info
     const totalCount = await db
-      .collection("properties5jan")
+      .collection("properties5jancleaned")
       .countDocuments(query);
 
     // Use aggregation pipeline to handle type conversion for sorting
@@ -196,32 +193,6 @@ app.get("/api/properties", async (req, res) => {
       { $match: query },
       {
         $addFields: {
-          priceNumeric: {
-            $convert: {
-              input: {
-                $replaceAll: {
-                  input: {
-                    $replaceAll: {
-                      input: {
-                        $replaceAll: {
-                          input: { $toString: { $ifNull: ["$price", 0] } },
-                          find: "RM",
-                          replacement: "",
-                        },
-                      },
-                      find: ",",
-                      replacement: "",
-                    },
-                  },
-                  find: " ",
-                  replacement: "",
-                },
-              },
-              to: "double",
-              onError: 0,
-              onNull: 0,
-            },
-          },
           sqftNumeric: {
             $convert: {
               input: {
@@ -255,7 +226,6 @@ app.get("/api/properties", async (req, res) => {
       { $limit: limit },
       {
         $project: {
-          priceNumeric: 0,
           sqftNumeric: 0,
         },
       },
@@ -263,7 +233,7 @@ app.get("/api/properties", async (req, res) => {
 
     // Fetch paginated properties using aggregation
     const properties = await db
-      .collection("properties5jan")
+      .collection("properties5jancleaned")
       .aggregate(pipeline)
       .toArray();
 
@@ -358,32 +328,6 @@ app.get("/api/properties/personalized", async (req, res) => {
     const pipeline = [
       {
         $addFields: {
-          priceNumeric: {
-            $convert: {
-              input: {
-                $replaceAll: {
-                  input: {
-                    $replaceAll: {
-                      input: {
-                        $replaceAll: {
-                          input: { $toString: { $ifNull: ["$price", 0] } },
-                          find: "RM",
-                          replacement: "",
-                        },
-                      },
-                      find: ",",
-                      replacement: "",
-                    },
-                  },
-                  find: " ",
-                  replacement: "",
-                },
-              },
-              to: "double",
-              onError: 0,
-              onNull: 0,
-            },
-          },
           sqftNumeric: {
             $convert: {
               input: {
@@ -497,7 +441,7 @@ app.get("/api/properties/personalized", async (req, res) => {
                             999999999,
                           ],
                         },
-                        price: "$priceNumeric",
+                        price: "$price",
                       },
                       in: {
                         $cond: {
@@ -958,7 +902,7 @@ app.get("/api/properties/personalized", async (req, res) => {
     // Get total count of scored properties
     console.log("Running aggregation pipeline...");
     const scoredProperties = await db
-      .collection("properties5jan")
+      .collection("properties5jancleaned")
       .aggregate(pipeline)
       .toArray();
     console.log(`Found ${scoredProperties.length} properties with score > 0`);
@@ -971,7 +915,6 @@ app.get("/api/properties/personalized", async (req, res) => {
     // Remove temporary numeric fields and score from response
     const cleanedProperties = paginatedProperties.map((prop) => {
       const {
-        priceNumeric,
         sqftNumeric,
         bedsNumeric,
         bathsNumeric,
@@ -1004,7 +947,7 @@ app.get("/api/properties/personalized", async (req, res) => {
 app.get("/api/properties/:id", async (req, res) => {
   try {
     const db = await connectToDatabase();
-    const property = await db.collection("properties5jan").findOne(
+    const property = await db.collection("properties5jancleaned").findOne(
       { _id: new ObjectId(req.params.id) },
       {
         projection: {
@@ -1235,7 +1178,7 @@ app.post("/api/properties/search", async (req, res) => {
     });
     console.log("Aggregation Pipeline:", JSON.stringify(pipeline, null, 2));
     const results = await db
-      .collection("properties5jan")
+      .collection("properties5jancleaned")
       .aggregate(pipeline)
       .toArray();
     res.json(results);

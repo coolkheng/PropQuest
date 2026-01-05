@@ -17,7 +17,7 @@ interface Property {
   url: string;
   title: string;
   address: string;
-  price: string;
+  price: number;
   beds: string;
   baths: string;
   sqft: string;
