@@ -1344,7 +1344,7 @@ INTENT_CLASSIFICATION_TEXT = `You are an intent classifier for a property chatbo
 Classify the user's intent into one of these three:
 - "search" (the user wants to find,search properties)
 - "question" (ONLY WHEN the user asks about your job,property info or concepts)
-- "unknown" 
+- "unknown (if the intent is unclear and when search question does not specific enough )" 
 Return only JSON.`;
 
 QUESTION_TEXT = `You are an AI property assistant. 
