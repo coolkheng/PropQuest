@@ -57,21 +57,46 @@ app.get("/api/properties", async (req, res) => {
     // Build MongoDB query from filters
     const query = {};
 
-    // Search query (keywords)
+    // Search query (keywords) with word-boundary regex for address to prevent false positives
     if (req.query.search) {
-      const searchRegex = new RegExp(req.query.search, "i");
+      const searchTerm = req.query.search.trim();
+      const generalRegex = new RegExp(searchTerm, "i");
+      // Ultra-strict word-boundary regex for address: matches "ss2" but not "ss21", "ss22", "ss25", etc.
+      // Pattern: (boundary) + exact term + (boundary OR end)
+      const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const addressRegex = new RegExp(
+        `(^|\\s|,|/|-)${escapedTerm}(?=\\s|,|/|-|$)`,
+        "i"
+      );
       query.$or = [
-        { title: searchRegex },
-        { address: searchRegex },
-        { house_type: searchRegex },
-        { facilities: { $in: [searchRegex] } },
+        { title: generalRegex },
+        { address: addressRegex },
+        { house_type: generalRegex },
+        { facilities: { $in: [generalRegex] } },
       ];
     }
 
+    // Location filter (separate from search) - also uses strict word-boundary
+    if (req.query.location) {
+      const locationTerm = req.query.location.trim();
+      const escapedLocation = locationTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const locationRegex = new RegExp(
+        `(^|\\s|,|/|-)${escapedLocation}(?=\\s|,|/|-|$)`,
+        "i"
+      );
+      // Add to existing $and or create new one
+      query.$and = query.$and || [];
+      query.$and.push({ address: locationRegex });
+    }
+
     // Property type filter (can be multiple, comma-separated)
+    // Don't override search query, add as additional filter
     if (req.query.propertyType) {
       const types = req.query.propertyType.split(",");
-      query.house_type = { $in: types.map((t) => new RegExp(t, "i")) };
+      const typeCondition = { $in: types.map((t) => new RegExp(t, "i")) };
+      // Add to existing $and or create new one
+      query.$and = query.$and || [];
+      query.$and.push({ house_type: typeCondition });
     }
 
     // Price range
@@ -163,7 +188,7 @@ app.get("/api/properties", async (req, res) => {
 
     // Get total count for pagination info
     const totalCount = await db
-      .collection("propertieswithprice")
+      .collection("properties5jan")
       .countDocuments(query);
 
     // Use aggregation pipeline to handle type conversion for sorting
@@ -238,7 +263,7 @@ app.get("/api/properties", async (req, res) => {
 
     // Fetch paginated properties using aggregation
     const properties = await db
-      .collection("propertieswithprice")
+      .collection("properties5jan")
       .aggregate(pipeline)
       .toArray();
 
@@ -933,7 +958,7 @@ app.get("/api/properties/personalized", async (req, res) => {
     // Get total count of scored properties
     console.log("Running aggregation pipeline...");
     const scoredProperties = await db
-      .collection("propertieswithprice")
+      .collection("properties5jan")
       .aggregate(pipeline)
       .toArray();
     console.log(`Found ${scoredProperties.length} properties with score > 0`);
@@ -979,7 +1004,7 @@ app.get("/api/properties/personalized", async (req, res) => {
 app.get("/api/properties/:id", async (req, res) => {
   try {
     const db = await connectToDatabase();
-    const property = await db.collection("propertieswithprice").findOne(
+    const property = await db.collection("properties5jan").findOne(
       { _id: new ObjectId(req.params.id) },
       {
         projection: {
@@ -1210,7 +1235,7 @@ app.post("/api/properties/search", async (req, res) => {
     });
     console.log("Aggregation Pipeline:", JSON.stringify(pipeline, null, 2));
     const results = await db
-      .collection("propertieswithprice")
+      .collection("properties5jan")
       .aggregate(pipeline)
       .toArray();
     res.json(results);

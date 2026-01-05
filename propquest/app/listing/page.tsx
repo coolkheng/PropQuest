@@ -35,7 +35,7 @@ interface Property {
 
 export default function ListingPage() {
   const [properties, setProperties] = useState<Property[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [pendingSearch, setPendingSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<Filters | null>(null);
   const [sortOption, setSortOption] = useState<SortOption | null>(null);
@@ -47,6 +47,13 @@ export default function ListingPage() {
   const router = useRouter();
   const { user } = useSession();
 
+  // Sync pendingSearch with filters.location when filters change
+  useEffect(() => {
+    if (filters?.location) {
+      setPendingSearch(filters.location);
+    }
+  }, [filters?.location]);
+
   useEffect(() => {
     const fetchProperties = async () => {
       setIsLoading(true);
@@ -57,13 +64,11 @@ export default function ListingPage() {
           limit: itemsPerPage.toString(),
         });
 
-        // Add search query
-        if (searchQuery) {
-          params.append("search", searchQuery);
-        }
-
         // Add filters
         if (filters) {
+          if (filters.location) {
+            params.append("location", filters.location);
+          }
           if (filters.propertyType && filters.propertyType.length > 0) {
             params.append("propertyType", filters.propertyType.join(","));
           }
@@ -108,11 +113,22 @@ export default function ListingPage() {
     };
 
     fetchProperties();
-  }, [currentPage, searchQuery, filters, sortOption, itemsPerPage]);
+  }, [currentPage, filters, sortOption, itemsPerPage]);
 
   const handlePropertyClick = (propertyId: string) => {
     sessionStorage.setItem("propertyDetailReferrer", "/listing");
     router.push(`/property/${propertyId}`);
+  };
+
+  const handleSearch = () => {
+    // When search is triggered, open filters with location pre-filled
+    if (pendingSearch.trim()) {
+      setFilters((prev) => ({
+        ...prev,
+        location: pendingSearch.trim(),
+      }));
+    }
+    setShowFilters(true);
   };
 
   const handleFilterClick = () => {
@@ -124,10 +140,10 @@ export default function ListingPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Reset to page 1 when filters or search changes
+  // Reset to page 1 when filters or sort changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filters, sortOption]);
+  }, [filters, sortOption]);
 
   // Count active filters
   const activeFilterCount = filters
@@ -191,22 +207,27 @@ export default function ListingPage() {
             }`}
           >
             <FloatingSearchBar
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
+              searchQuery={pendingSearch}
+              onSearchChange={setPendingSearch}
               className=""
-              onIconClick={() => setShowFilters(true)}
+              onIconClick={() => setShowFilters(false)}
               onInputClick={() => setShowFilters(true)}
+              onSearch={handleSearch}
               isExpanded={showFilters}
             />
             <FiltersModal
               open={showFilters}
               onClose={() => setShowFilters(false)}
-              onApply={(f) => setFilters(f)}
+              onApply={(f) => {
+                setFilters(f);
+                setShowFilters(false);
+              }}
               onClear={() => {
-                setSearchQuery("");
+                setPendingSearch("");
                 setFilters(null);
               }}
               initial={filters ?? undefined}
+              locationValue={pendingSearch}
             />
           </div>
         </div>
@@ -259,7 +280,9 @@ export default function ListingPage() {
                           <span className="px-3 py-2 text-gray-400">...</span>
                         ) : (
                           <Button
-                            variant={currentPage === page ? "default" : "outline"}
+                            variant={
+                              currentPage === page ? "default" : "outline"
+                            }
                             onClick={() => handlePageChange(page as number)}
                             className={`px-3 py-2 min-w-[40px] ${
                               currentPage === page
