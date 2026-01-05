@@ -57,21 +57,49 @@ app.get("/api/properties", async (req, res) => {
     // Build MongoDB query from filters
     const query = {};
 
-    // Search query (keywords)
+    // Search query (keywords) with word-boundary regex for address to prevent false positives
     if (req.query.search) {
-      const searchRegex = new RegExp(req.query.search, "i");
+      const searchTerm = req.query.search.trim();
+      const generalRegex = new RegExp(searchTerm, "i");
+      // Ultra-strict word-boundary regex for address: matches "ss2" but not "ss21", "ss22", "ss25", etc.
+      // Pattern: (boundary) + exact term + (boundary OR end)
+      const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const addressRegex = new RegExp(
+        `(^|\\s|,|/|-)${escapedTerm}(?=\\s|,|/|-|$)`,
+        "i"
+      );
       query.$or = [
-        { title: searchRegex },
-        { address: searchRegex },
-        { house_type: searchRegex },
-        { facilities: { $in: [searchRegex] } },
+        { title: generalRegex },
+        { address: addressRegex },
+        { house_type: generalRegex },
+        { facilities: { $in: [generalRegex] } },
       ];
     }
 
+    // Location filter (separate from search) - also uses strict word-boundary
+    if (req.query.location) {
+      const locationTerm = req.query.location.trim();
+      const escapedLocation = locationTerm.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      );
+      const locationRegex = new RegExp(
+        `(^|\\s|,|/|-)${escapedLocation}(?=\\s|,|/|-|$)`,
+        "i"
+      );
+      // Add to existing $and or create new one
+      query.$and = query.$and || [];
+      query.$and.push({ address: locationRegex });
+    }
+
     // Property type filter (can be multiple, comma-separated)
+    // Don't override search query, add as additional filter
     if (req.query.propertyType) {
       const types = req.query.propertyType.split(",");
-      query.house_type = { $in: types.map((t) => new RegExp(t, "i")) };
+      const typeCondition = { $in: types.map((t) => new RegExp(t, "i")) };
+      // Add to existing $and or create new one
+      query.$and = query.$and || [];
+      query.$and.push({ house_type: typeCondition });
     }
 
     // Price range
@@ -79,22 +107,12 @@ app.get("/api/properties", async (req, res) => {
       query.$and = query.$and || [];
       if (req.query.minPrice) {
         query.$and.push({
-          $expr: {
-            $gte: [
-              { $toDouble: { $ifNull: ["$price", "0"] } },
-              parseFloat(req.query.minPrice),
-            ],
-          },
+          price: { $gte: parseFloat(req.query.minPrice) },
         });
       }
       if (req.query.maxPrice) {
         query.$and.push({
-          $expr: {
-            $lte: [
-              { $toDouble: { $ifNull: ["$price", "0"] } },
-              parseFloat(req.query.maxPrice),
-            ],
-          },
+          price: { $lte: parseFloat(req.query.maxPrice) },
         });
       }
     }
@@ -146,7 +164,7 @@ app.get("/api/properties", async (req, res) => {
 
       switch (req.query.sortBy) {
         case "price":
-          sortStage = { priceNumeric: direction };
+          sortStage = { price: direction };
           break;
         case "area":
           sortStage = { sqftNumeric: direction };
@@ -163,7 +181,7 @@ app.get("/api/properties", async (req, res) => {
 
     // Get total count for pagination info
     const totalCount = await db
-      .collection("propertieswithprice")
+      .collection("properties5jancleaned")
       .countDocuments(query);
 
     // Use aggregation pipeline to handle type conversion for sorting
@@ -171,32 +189,6 @@ app.get("/api/properties", async (req, res) => {
       { $match: query },
       {
         $addFields: {
-          priceNumeric: {
-            $convert: {
-              input: {
-                $replaceAll: {
-                  input: {
-                    $replaceAll: {
-                      input: {
-                        $replaceAll: {
-                          input: { $toString: { $ifNull: ["$price", 0] } },
-                          find: "RM",
-                          replacement: "",
-                        },
-                      },
-                      find: ",",
-                      replacement: "",
-                    },
-                  },
-                  find: " ",
-                  replacement: "",
-                },
-              },
-              to: "double",
-              onError: 0,
-              onNull: 0,
-            },
-          },
           sqftNumeric: {
             $convert: {
               input: {
@@ -230,7 +222,6 @@ app.get("/api/properties", async (req, res) => {
       { $limit: limit },
       {
         $project: {
-          priceNumeric: 0,
           sqftNumeric: 0,
         },
       },
@@ -238,7 +229,7 @@ app.get("/api/properties", async (req, res) => {
 
     // Fetch paginated properties using aggregation
     const properties = await db
-      .collection("propertieswithprice")
+      .collection("properties5jancleaned")
       .aggregate(pipeline)
       .toArray();
 
@@ -253,7 +244,8 @@ app.get("/api/properties", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(error);
+    console.error("❌ /api/properties error:", error);
+    console.error("Error details:", error.message);
     res.status(500).json({ error: "Failed to fetch properties" });
   }
 });
@@ -334,29 +326,39 @@ app.get("/api/properties/personalized", async (req, res) => {
       {
         $addFields: {
           priceNumeric: {
-            $convert: {
-              input: {
-                $replaceAll: {
+            $cond: {
+              if: { $eq: [{ $type: "$price" }, "string"] },
+              then: {
+                $convert: {
                   input: {
-                    $replaceAll: {
+                    $trim: {
                       input: {
                         $replaceAll: {
-                          input: { $toString: { $ifNull: ["$price", 0] } },
-                          find: "RM",
+                          input: {
+                            $replaceAll: {
+                              input: {
+                                $replaceAll: {
+                                  input: "$price",
+                                  find: "RM",
+                                  replacement: "",
+                                },
+                              },
+                              find: ",",
+                              replacement: "",
+                            },
+                          },
+                          find: " ",
                           replacement: "",
                         },
                       },
-                      find: ",",
-                      replacement: "",
                     },
                   },
-                  find: " ",
-                  replacement: "",
+                  to: "double",
+                  onError: 0,
+                  onNull: 0,
                 },
               },
-              to: "double",
-              onError: 0,
-              onNull: 0,
+              else: { $toDouble: "$price" },
             },
           },
           sqftNumeric: {
@@ -387,7 +389,16 @@ app.get("/api/properties/personalized", async (req, res) => {
           },
           bedsNumeric: {
             $convert: {
-              input: "$beds",
+              input: {
+                $trim: {
+                  input: {
+                    $arrayElemAt: [
+                      { $split: [{ $toString: "$beds" }, " "] },
+                      0
+                    ]
+                  }
+                }
+              },
               to: "double",
               onError: 0,
               onNull: 0,
@@ -395,7 +406,16 @@ app.get("/api/properties/personalized", async (req, res) => {
           },
           bathsNumeric: {
             $convert: {
-              input: "$baths",
+              input: {
+                $trim: {
+                  input: {
+                    $arrayElemAt: [
+                      { $split: [{ $toString: "$baths" }, " "] },
+                      0
+                    ]
+                  }
+                }
+              },
               to: "double",
               onError: 0,
               onNull: 0,
@@ -933,7 +953,7 @@ app.get("/api/properties/personalized", async (req, res) => {
     // Get total count of scored properties
     console.log("Running aggregation pipeline...");
     const scoredProperties = await db
-      .collection("propertieswithprice")
+      .collection("properties5jancleaned")
       .aggregate(pipeline)
       .toArray();
     console.log(`Found ${scoredProperties.length} properties with score > 0`);
@@ -953,7 +973,8 @@ app.get("/api/properties/personalized", async (req, res) => {
         score,
         ...rest
       } = prop;
-      return rest;
+      // Return price from priceNumeric to ensure it's always a number
+      return { ...rest, price: priceNumeric };
     });
 
     console.log(
@@ -971,15 +992,17 @@ app.get("/api/properties/personalized", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Personalized properties error:", error);
-    res.status(500).json({ error: "Failed to fetch personalized properties" });
+    console.error("❌ Personalized properties error:", error);
+    console.error("Error message:", error.message);
+    console.error("Stack trace:", error.stack);
+    res.status(500).json({ error: "Failed to fetch personalized properties", details: error.message });
   }
 });
 
 app.get("/api/properties/:id", async (req, res) => {
   try {
     const db = await connectToDatabase();
-    const property = await db.collection("propertieswithprice").findOne(
+    const property = await db.collection("properties5jancleaned").findOne(
       { _id: new ObjectId(req.params.id) },
       {
         projection: {
@@ -1210,7 +1233,7 @@ app.post("/api/properties/search", async (req, res) => {
     });
     console.log("Aggregation Pipeline:", JSON.stringify(pipeline, null, 2));
     const results = await db
-      .collection("propertieswithprice")
+      .collection("properties5jancleaned")
       .aggregate(pipeline)
       .toArray();
     res.json(results);
@@ -1543,6 +1566,7 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/auth/me", async (req, res) => {
   const token = req.cookies?.token;
   if (!token) {
+    console.log("⚠️ /api/auth/me: No token in cookies");
     return res.status(401).json({ error: "Missing token" });
   }
   const secret = process.env.JWT_SECRET || "dev-secret";
@@ -1553,7 +1577,10 @@ app.get("/api/auth/me", async (req, res) => {
     const user = await db
       .collection("users")
       .findOne({ _id: new ObjectId(userId) });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) {
+      console.log(`⚠️ /api/auth/me: User not found for userId: ${userId}`);
+      return res.status(404).json({ error: "User not found" });
+    }
 
     // return safe user object
     return res.json({
@@ -1566,7 +1593,7 @@ app.get("/api/auth/me", async (req, res) => {
       last_login_date: user.last_login_date || null,
     });
   } catch (err) {
-    console.error("Token verification error:", err);
+    console.error("⚠️ Token verification error:", err.message);
     return res.status(401).json({ error: "Invalid token" });
   }
 });

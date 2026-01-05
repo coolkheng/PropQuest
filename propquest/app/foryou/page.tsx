@@ -17,7 +17,7 @@ interface Property {
   url: string;
   title: string;
   address: string;
-  price: string;
+  price: number;
   beds: string;
   baths: string;
   sqft: string;
@@ -34,6 +34,7 @@ interface Property {
 export default function ForYouPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasPreferences, setHasPreferences] = useState<boolean | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(60);
   const [totalPages, setTotalPages] = useState(0);
@@ -41,14 +42,47 @@ export default function ForYouPage() {
   const router = useRouter();
   const { user, loading: sessionLoading } = useSession();
 
+  // Check if user has preferences
   useEffect(() => {
-    // Redirect to login if not authenticated
     if (!sessionLoading && !user) {
       router.push("/login");
       return;
     }
 
     if (!user) return;
+
+    const checkPreferences = async () => {
+      try {
+        const res = await axios.get(
+          "http://localhost:5001/api/users/me/preferences",
+          { withCredentials: true }
+        );
+        const prefs = res.data.preferences || {};
+        
+        // Check if any preferences are set
+        const hasSomePrefs =
+          (prefs.preferred_locations && prefs.preferred_locations.length > 0) ||
+          (prefs.budget_range && (prefs.budget_range.min != null || prefs.budget_range.max != null)) ||
+          (prefs.preferred_types && prefs.preferred_types.length > 0) ||
+          (prefs.keywords && prefs.keywords.length > 0) ||
+          prefs.min_size_sqft != null ||
+          prefs.ideal_size_sqft != null ||
+          prefs.rooms != null ||
+          prefs.toilets != null;
+        
+        setHasPreferences(hasSomePrefs);
+      } catch (error) {
+        console.error("Error checking preferences:", error);
+        setHasPreferences(false);
+      }
+    };
+
+    checkPreferences();
+  }, [user, sessionLoading, router]);
+
+  // Fetch personalized properties only if preferences exist
+  useEffect(() => {
+    if (!user || hasPreferences === null || !hasPreferences) return;
 
     const fetchPersonalizedProperties = async () => {
       setIsLoading(true);
@@ -78,7 +112,7 @@ export default function ForYouPage() {
     };
 
     fetchPersonalizedProperties();
-  }, [currentPage, user, sessionLoading, router, itemsPerPage]);
+  }, [currentPage, user, hasPreferences, itemsPerPage]);
 
   const handlePropertyClick = (propertyId: string) => {
     sessionStorage.setItem("propertyDetailReferrer", "/foryou");
@@ -175,7 +209,7 @@ export default function ForYouPage() {
               Loading your personalized recommendations...
             </p>
           </div>
-        ) : displayedProperties.length === 0 ? (
+        ) : hasPreferences === false ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="text-center">
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -190,6 +224,24 @@ export default function ForYouPage() {
                 className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400"
               >
                 Go to Preferences
+              </Button>
+            </div>
+          </div>
+        ) : displayedProperties.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="text-center">
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                No Properties Found
+              </h3>
+              <p className="text-gray-600 mb-6">
+                We couldn't find any properties matching your preferences. Try
+                adjusting your filters.
+              </p>
+              <Button
+                onClick={() => router.push("/preferences")}
+                className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400"
+              >
+                Update Preferences
               </Button>
             </div>
           </div>

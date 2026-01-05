@@ -1,6 +1,7 @@
 "use client";
 
 import { Bed, Bath, Square, DollarSign, MapPin } from "lucide-react";
+import { formatPrice } from "@/lib/utils";
 
 // ✅ Locally define the Property interface
 interface Property {
@@ -8,7 +9,7 @@ interface Property {
   url: string;
   title: string;
   address: string;
-  price: string;
+  price: number;
   beds: string;
   baths: string;
   sqft: string;
@@ -114,7 +115,7 @@ export function PropertyGrid({
             {/* Price */}
             <div className="mb-4">
               <span className="text-2xl font-bold text-gray-900">
-                {property.price}
+                {formatPrice(property.price)}
               </span>
             </div>
 

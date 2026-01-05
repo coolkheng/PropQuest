@@ -10,18 +10,25 @@ interface FloatingSearchBarProps {
   className?: string;
   onIconClick?: () => void;
   onInputClick?: () => void;
+  onSearch?: () => void;
   isExpanded?: boolean;
 }
 
 export function FloatingSearchBar({
   searchQuery,
   onSearchChange,
-  placeholder = "Search properties in Petaling Jaya...",
+  placeholder = "Search location (e.g., SS2, Damansara, Kelana Jaya)...",
   className = "",
   onIconClick,
   onInputClick,
+  onSearch,
   isExpanded = false,
 }: FloatingSearchBarProps) {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && onSearch) {
+      onSearch();
+    }
+  };
   return (
     <div className={`relative ${className}`}>
       <div
@@ -37,6 +44,7 @@ export function FloatingSearchBar({
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           onClick={() => onInputClick && onInputClick()}
+          onKeyDown={handleKeyDown}
           className={`border-0 bg-transparent text-gray-700 placeholder:text-gray-500 focus:ring-0 focus:outline-none transition-all duration-300 ${
             isExpanded
               ? "pl-6 pr-14 py-5 rounded-t-2xl"
@@ -44,20 +52,25 @@ export function FloatingSearchBar({
           }`}
         />
         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-          <button
-            onClick={() => onIconClick && onIconClick()}
-            aria-label={
-              isExpanded ? "Close search filters" : "Open search filters"
-            }
-            className="rounded-full p-2 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 
-             transition-transform duration-200 hover:scale-110"
-          >
-            {isExpanded ? (
+          {isExpanded ? (
+            <button
+              onClick={() => onIconClick && onIconClick()}
+              aria-label="Close search filters"
+              className="rounded-full p-2 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 
+               transition-transform duration-200 hover:scale-110"
+            >
               <X className="h-4 w-4 text-white" />
-            ) : (
+            </button>
+          ) : (
+            <button
+              onClick={() => onSearch && onSearch()}
+              aria-label="Search properties"
+              className="rounded-full p-2 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 
+               transition-transform duration-200 hover:scale-110"
+            >
               <Search className="h-4 w-4 text-white" />
-            )}
-          </button>
+            </button>
+          )}
         </div>
       </div>
     </div>

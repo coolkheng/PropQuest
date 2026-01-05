@@ -1,6 +1,7 @@
 import { MapPin, Calendar, Hash } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { formatPrice } from "@/lib/utils"
 
 interface ListingOverviewProps {
   title: string
@@ -9,7 +10,7 @@ interface ListingOverviewProps {
   dateListed: string
   // dateUpdated: string
   // referenceNumber: string
-  price: string
+  price: number
   // priceType: string
 }
 
@@ -55,7 +56,7 @@ export function ListingOverview({
 
         <div className="bg-blue-50 p-4 rounded-lg">
           <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
-            {price}
+            {formatPrice(price)}
             {/* <span className="text-lg font-normal text-gray-600 ml-2">{priceType}</span> */}
           </div>
         </div>
