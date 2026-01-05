@@ -10,7 +10,8 @@
     "bcryptjs": "^2.4.3",
     "openai": "^5.23.2",
     "jsonwebtoken": "^9.0.0",
-    "cookie-parser": "^1.4.6"
+    "cookie-parser": "^1.4.6",
+    "node-fetch": "^3.3.2"
   },
   "scripts": {
     "start": "node api/index.js"
