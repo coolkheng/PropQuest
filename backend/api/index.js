@@ -107,16 +107,12 @@ app.get("/api/properties", async (req, res) => {
       query.$and = query.$and || [];
       if (req.query.minPrice) {
         query.$and.push({
-          price: {
-            $gte: parseFloat(req.query.minPrice),
-          },
+          price: { $gte: parseFloat(req.query.minPrice) },
         });
       }
       if (req.query.maxPrice) {
         query.$and.push({
-          price: {
-            $lte: parseFloat(req.query.maxPrice),
-          },
+          price: { $lte: parseFloat(req.query.maxPrice) },
         });
       }
     }
@@ -248,7 +244,8 @@ app.get("/api/properties", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(error);
+    console.error("❌ /api/properties error:", error);
+    console.error("Error details:", error.message);
     res.status(500).json({ error: "Failed to fetch properties" });
   }
 });
@@ -328,6 +325,42 @@ app.get("/api/properties/personalized", async (req, res) => {
     const pipeline = [
       {
         $addFields: {
+          priceNumeric: {
+            $cond: {
+              if: { $eq: [{ $type: "$price" }, "string"] },
+              then: {
+                $convert: {
+                  input: {
+                    $trim: {
+                      input: {
+                        $replaceAll: {
+                          input: {
+                            $replaceAll: {
+                              input: {
+                                $replaceAll: {
+                                  input: "$price",
+                                  find: "RM",
+                                  replacement: "",
+                                },
+                              },
+                              find: ",",
+                              replacement: "",
+                            },
+                          },
+                          find: " ",
+                          replacement: "",
+                        },
+                      },
+                    },
+                  },
+                  to: "double",
+                  onError: 0,
+                  onNull: 0,
+                },
+              },
+              else: { $toDouble: "$price" },
+            },
+          },
           sqftNumeric: {
             $convert: {
               input: {
@@ -356,7 +389,16 @@ app.get("/api/properties/personalized", async (req, res) => {
           },
           bedsNumeric: {
             $convert: {
-              input: "$beds",
+              input: {
+                $trim: {
+                  input: {
+                    $arrayElemAt: [
+                      { $split: [{ $toString: "$beds" }, " "] },
+                      0
+                    ]
+                  }
+                }
+              },
               to: "double",
               onError: 0,
               onNull: 0,
@@ -364,7 +406,16 @@ app.get("/api/properties/personalized", async (req, res) => {
           },
           bathsNumeric: {
             $convert: {
-              input: "$baths",
+              input: {
+                $trim: {
+                  input: {
+                    $arrayElemAt: [
+                      { $split: [{ $toString: "$baths" }, " "] },
+                      0
+                    ]
+                  }
+                }
+              },
               to: "double",
               onError: 0,
               onNull: 0,
@@ -441,7 +492,7 @@ app.get("/api/properties/personalized", async (req, res) => {
                             999999999,
                           ],
                         },
-                        price: "$price",
+                        price: "$priceNumeric",
                       },
                       in: {
                         $cond: {
@@ -915,13 +966,15 @@ app.get("/api/properties/personalized", async (req, res) => {
     // Remove temporary numeric fields and score from response
     const cleanedProperties = paginatedProperties.map((prop) => {
       const {
+        priceNumeric,
         sqftNumeric,
         bedsNumeric,
         bathsNumeric,
         score,
         ...rest
       } = prop;
-      return rest;
+      // Return price from priceNumeric to ensure it's always a number
+      return { ...rest, price: priceNumeric };
     });
 
     console.log(
@@ -939,8 +992,10 @@ app.get("/api/properties/personalized", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Personalized properties error:", error);
-    res.status(500).json({ error: "Failed to fetch personalized properties" });
+    console.error("❌ Personalized properties error:", error);
+    console.error("Error message:", error.message);
+    console.error("Stack trace:", error.stack);
+    res.status(500).json({ error: "Failed to fetch personalized properties", details: error.message });
   }
 });
 
@@ -1511,6 +1566,7 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/auth/me", async (req, res) => {
   const token = req.cookies?.token;
   if (!token) {
+    console.log("⚠️ /api/auth/me: No token in cookies");
     return res.status(401).json({ error: "Missing token" });
   }
   const secret = process.env.JWT_SECRET || "dev-secret";
@@ -1521,7 +1577,10 @@ app.get("/api/auth/me", async (req, res) => {
     const user = await db
       .collection("users")
       .findOne({ _id: new ObjectId(userId) });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) {
+      console.log(`⚠️ /api/auth/me: User not found for userId: ${userId}`);
+      return res.status(404).json({ error: "User not found" });
+    }
 
     // return safe user object
     return res.json({
@@ -1534,7 +1593,7 @@ app.get("/api/auth/me", async (req, res) => {
       last_login_date: user.last_login_date || null,
     });
   } catch (err) {
-    console.error("Token verification error:", err);
+    console.error("⚠️ Token verification error:", err.message);
     return res.status(401).json({ error: "Invalid token" });
   }
 });
