@@ -76,7 +76,7 @@ app.get("/api/properties", async (req, res) => {
       ];
     }
 
-    // Location filter (separate from search) - also uses strict word-boundary
+    // Location filter (separate from search) - searches both address and title
     if (req.query.location) {
       const locationTerm = req.query.location.trim();
       const escapedLocation = locationTerm.replace(
@@ -87,9 +87,17 @@ app.get("/api/properties", async (req, res) => {
         `(^|\\s|,|/|-)${escapedLocation}(?=\\s|,|/|-|$)`,
         "i"
       );
+      // Search in both address (strict word-boundary) and title (general match)
+      const generalLocationRegex = new RegExp(locationTerm, "i");
+      
       // Add to existing $and or create new one
       query.$and = query.$and || [];
-      query.$and.push({ address: locationRegex });
+      query.$and.push({
+        $or: [
+          { address: locationRegex },
+          { title: generalLocationRegex }
+        ]
+      });
     }
 
     // Property type filter (can be multiple, comma-separated)
