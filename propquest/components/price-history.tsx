@@ -11,6 +11,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceLine,
 } from "recharts";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
@@ -19,36 +20,43 @@ interface PriceHistoryProps {
     date: string;
     price: number;
   }>;
+  currentPrice?: string | number;
 }
 
-export function PriceHistory({ priceHistory }: PriceHistoryProps) {
-
+export function PriceHistory({
+  priceHistory,
+  currentPrice,
+}: PriceHistoryProps) {
   if (!priceHistory || priceHistory.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">Price History</CardTitle>
+          <CardTitle className="text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
+            Price History
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-12 space-y-4">
-              <Image
-                src="/chiikawa_crying.png"
-                alt="No price history available"
-                width={140}
-                height={140}
-                className="opacity-80"
-              />
+            <Image
+              src="/chiikawa_crying.png"
+              alt="No price history available"
+              width={140}
+              height={140}
+              className="opacity-80"
+            />
             <div className="text-center space-y-2">
-              <h3 className="text-lg font-semibold text-gray-900">No Price History Available</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                No Price History Available
+              </h3>
               <p className="text-sm text-gray-600 max-w-md">
-                Price history data is not available for this property yet. Check back later for pricing trends and
-                changes.
+                Price history data is not available for this property yet. Check
+                back later for pricing trends and changes.
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   // Avoid potential SSR/hydration issues with Recharts by rendering after mount
@@ -63,7 +71,21 @@ export function PriceHistory({ priceHistory }: PriceHistoryProps) {
   const lastPrice = hasData
     ? priceHistory[priceHistory.length - 1]?.price ?? 0
     : 0;
-  const priceChange = lastPrice - firstPrice;
+  // Parse current property price (e.g., "RM 650,000") and fallback to last historical price if invalid
+  const parsePriceToNumber = (
+    value: string | number | undefined,
+    fallback: number
+  ) => {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") {
+      const cleaned = value.replace(/[^\d.]/g, "");
+      const n = Number(cleaned);
+      if (Number.isFinite(n)) return n;
+    }
+    return fallback;
+  };
+  const currentParsed = parsePriceToNumber(currentPrice, lastPrice);
+  const priceChange = currentParsed - firstPrice;
   const priceChangePercent: string =
     firstPrice > 0 ? ((priceChange / firstPrice) * 100).toFixed(1) : "0.0";
   const isPriceIncreasing = priceChange >= 0;
@@ -162,7 +184,7 @@ export function PriceHistory({ priceHistory }: PriceHistoryProps) {
             <div>
               <p className="text-xs text-gray-600">Current Price</p>
               <p className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">
-                {formatCurrency(lastPrice)}
+                {formatCurrency(currentParsed)}
               </p>
             </div>
           </div>
@@ -186,6 +208,19 @@ export function PriceHistory({ priceHistory }: PriceHistoryProps) {
                   tickFormatter={(value: number) => `${value / 1000}k`}
                 />
                 <Tooltip content={<CustomTooltip />} />
+                {/* Horizontal marker for current property price */}
+                <ReferenceLine
+                  y={currentParsed}
+                  stroke="#10b981"
+                  strokeDasharray="4 4"
+                  ifOverflow="extendDomain"
+                  label={{
+                    value: "Current Price",
+                    position: "right",
+                    fill: "#10b981",
+                    fontSize: 12,
+                  }}
+                />
                 <Line
                   type="monotone"
                   dataKey="price"

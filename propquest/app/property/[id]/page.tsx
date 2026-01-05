@@ -93,7 +93,10 @@ export default function PropertyDetailPage({
             </div>
 
             <div className="mt-8">
-              <PriceHistory priceHistory={propertyData?.priceHistory || []} />
+              <PriceHistory
+                priceHistory={propertyData?.priceHistory || []}
+                currentPrice={propertyData?.price}
+              />
             </div>
           </>
         )}
