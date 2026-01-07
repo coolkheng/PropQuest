@@ -26,6 +26,7 @@ interface PropertyCardsCarouselProps {
   onPropertyHover: (id: string | null) => void;
   onPropertyClick: (id: string) => void;
   isAISearch?: boolean;
+
 }
 
 export function PropertyCardsCarousel({
@@ -35,7 +36,7 @@ export function PropertyCardsCarousel({
   onPropertyClick,
   isAISearch = false,
 }: PropertyCardsCarouselProps) {
-  // Limit to 50 properties for initial load, show all for AI search results
+  // Ensure properties is always an array
   const displayProperties = isAISearch ? properties : properties.slice(0, 50);
 
   return (

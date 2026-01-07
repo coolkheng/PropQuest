@@ -4,6 +4,7 @@ import { Star } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import { formatPrice } from "@/lib/utils"
 
 interface MapPropertyCardProps {
   property: {
@@ -11,7 +12,7 @@ interface MapPropertyCardProps {
   url: string;
   title: string;
   address: string;
-  price: string;
+  price: number;
   beds: string;
   baths: string;
   sqft: string;
@@ -67,7 +68,7 @@ export function MapPropertyCard({ property, isHovered, onMouseEnter, onMouseLeav
           <div className="flex items-center justify-between mt-auto">
             <div className="flex items-center space-x-1">
             </div>
-            <div className="bg-gray-900 text-white px-2 py-1 rounded text-sm font-semibold">{property.price}</div>
+            <div className="bg-gray-900 text-white px-2 py-1 rounded text-sm font-semibold">{formatPrice(property.price)}</div>
           </div>
         </CardContent>
       </Card>

@@ -12,7 +12,7 @@ interface Property {
   url: string;
   title: string;
   address: string;
-  price: string;
+  price: number;
   beds: string;
   baths: string;
   sqft: string;
@@ -93,7 +93,10 @@ export default function PropertyDetailPage({
             </div>
 
             <div className="mt-8">
-              <PriceHistory priceHistory={propertyData?.priceHistory || []} />
+              <PriceHistory
+                priceHistory={propertyData?.priceHistory || []}
+                currentPrice={propertyData?.price}
+              />
             </div>
           </>
         )}

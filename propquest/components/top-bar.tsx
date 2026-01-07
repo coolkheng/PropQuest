@@ -34,7 +34,6 @@ export function TopBar() {
             height={40}
             className="object-contain"
           />
-          
         </Link>
         <div className="flex items-center space-x-4" ref={rootRef}>
           {!loading && user ? (

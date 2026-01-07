@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type Filters = {
+  location?: string | null;
   minPrice?: number | null;
   maxPrice?: number | null;
   minSize?: number | null;
@@ -21,12 +22,14 @@ export function FiltersModal({
   onApply,
   onClear,
   initial,
+  locationValue,
 }: {
   open: boolean;
   onClose: () => void;
   onApply: (f: Filters) => void;
   onClear?: () => void;
   initial?: Filters;
+  locationValue?: string;
 }) {
   const [minPrice, setMinPrice] = useState<number | null>(
     initial?.minPrice ?? null
@@ -91,6 +94,7 @@ export function FiltersModal({
       .map((s) => s.trim())
       .filter(Boolean);
     onApply({
+      location: locationValue?.trim() || null,
       minPrice: minPrice ?? null,
       maxPrice: maxPrice ?? null,
       minSize: minSize ?? null,

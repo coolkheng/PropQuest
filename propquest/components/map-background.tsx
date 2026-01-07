@@ -14,7 +14,7 @@ interface Property {
   url: string;
   title: string;
   address: string;
-  price: string;
+  price: number;
   beds: string;
   baths: string;
   sqft: string;
@@ -193,6 +193,7 @@ export function MapBackground({
                 },
               });
 
+            if (viewRef.current) {
               viewRef.current.graphics.add(fallbackGraphic);
               graphicsMapRef.current.set(property._id, fallbackGraphic);
 
@@ -202,7 +203,8 @@ export function MapBackground({
                   "Multiple geocoding failures detected. Map service may be rate-limited."
                 );
               }
-            });
+            }
+          });
         });
 
         // Hover-only popup using pointer-move and hitTest
