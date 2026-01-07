@@ -34,57 +34,27 @@ interface Property {
 export default function ForYouPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasPreferences, setHasPreferences] = useState<boolean | null>(null);
+  const [isPersonalized, setIsPersonalized] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(60);
+  const [itemsPerPage] = useState(50);
   const [totalPages, setTotalPages] = useState(0);
   const [totalResults, setTotalResults] = useState(0);
   const router = useRouter();
   const { user, loading: sessionLoading } = useSession();
 
-  // Check if user has preferences
+  // Redirect if not logged in
   useEffect(() => {
     if (!sessionLoading && !user) {
       router.push("/login");
       return;
     }
-
-    if (!user) return;
-
-    const checkPreferences = async () => {
-      try {
-        const res = await axios.get(
-          "http://localhost:5001/api/users/me/preferences",
-          { withCredentials: true }
-        );
-        const prefs = res.data.preferences || {};
-        
-        // Check if any preferences are set
-        const hasSomePrefs =
-          (prefs.preferred_locations && prefs.preferred_locations.length > 0) ||
-          (prefs.budget_range && (prefs.budget_range.min != null || prefs.budget_range.max != null)) ||
-          (prefs.preferred_types && prefs.preferred_types.length > 0) ||
-          (prefs.keywords && prefs.keywords.length > 0) ||
-          prefs.min_size_sqft != null ||
-          prefs.ideal_size_sqft != null ||
-          prefs.rooms != null ||
-          prefs.toilets != null;
-        
-        setHasPreferences(hasSomePrefs);
-      } catch (error) {
-        console.error("Error checking preferences:", error);
-        setHasPreferences(false);
-      }
-    };
-
-    checkPreferences();
   }, [user, sessionLoading, router]);
 
-  // Fetch personalized properties only if preferences exist
+  // Fetch properties (backend handles personalized vs default ranking)
   useEffect(() => {
-    if (!user || hasPreferences === null || !hasPreferences) return;
+    if (!user) return;
 
-    const fetchPersonalizedProperties = async () => {
+    const fetchProperties = async () => {
       setIsLoading(true);
       try {
         const params = new URLSearchParams({
@@ -97,12 +67,13 @@ export default function ForYouPage() {
           { withCredentials: true }
         );
 
-        console.log("Personalized API Response:", res.data);
+        console.log("Properties API Response:", res.data);
         setProperties(res.data.properties || []);
+        setIsPersonalized(res.data.isPersonalized !== false);
         setTotalPages(res.data.pagination.totalPages || 0);
         setTotalResults(res.data.pagination.totalCount || 0);
       } catch (error) {
-        console.error("Error fetching personalized properties:", error);
+        console.error("Error fetching properties:", error);
         setProperties([]);
         setTotalPages(0);
         setTotalResults(0);
@@ -111,8 +82,8 @@ export default function ForYouPage() {
       }
     };
 
-    fetchPersonalizedProperties();
-  }, [currentPage, user, hasPreferences, itemsPerPage]);
+    fetchProperties();
+  }, [currentPage, user, itemsPerPage]);
 
   const handlePropertyClick = (propertyId: string) => {
     sessionStorage.setItem("propertyDetailReferrer", "/foryou");
@@ -206,26 +177,8 @@ export default function ForYouPage() {
           <div className="flex flex-col items-center justify-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             <p className="mt-4 text-gray-600">
-              Loading your personalized recommendations...
+              Loading properties...
             </p>
-          </div>
-        ) : hasPreferences === false ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="text-center">
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Set Your Preferences
-              </h3>
-              <p className="text-gray-600 mb-6">
-                To see personalized recommendations, please set your property
-                preferences first.
-              </p>
-              <Button
-                onClick={() => router.push("/preferences")}
-                className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400"
-              >
-                Go to Preferences
-              </Button>
-            </div>
           </div>
         ) : displayedProperties.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
@@ -247,6 +200,31 @@ export default function ForYouPage() {
           </div>
         ) : (
           <>
+            {!isPersonalized && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 text-xl">💡</span>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      Get Personalized Recommendations
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Set your preferences to see properties ranked specifically for you. For now, showing the 50 newest listings:
+                    </p>
+                    <Button
+                      onClick={() => router.push("/preferences")}
+                      className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400"
+                    >
+                      Set Your Preferences
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
             <PropertyGrid
               properties={displayedProperties}
               onPropertyClick={handlePropertyClick}
