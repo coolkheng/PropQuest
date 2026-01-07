@@ -306,28 +306,58 @@ app.get("/api/properties/personalized", async (req, res) => {
         normalizedPrefs.preferred_types.length > 0) ||
       (normalizedPrefs.keywords && normalizedPrefs.keywords.length > 0) ||
       normalizedPrefs.min_size_sqft != null ||
-      normalizedPrefs.rooms != null ||
-      normalizedPrefs.toilets != null;
+      (normalizedPrefs.rooms &&
+        (normalizedPrefs.rooms.min != null || normalizedPrefs.rooms.max != null)) ||
+      (normalizedPrefs.toilets &&
+        (normalizedPrefs.toilets.min != null || normalizedPrefs.toilets.max != null));
 
     console.log("Has preferences:", hasPreferences);
 
+    // Get pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = (page - 1) * limit;
+
+    // FR_12: Fall back to default ranking (by recency) if no preferences
     if (!hasPreferences) {
+      console.log("No preferences found. Using default ranking by recency. Showing only 50 newest listings.");
+      
+      // Only show top 50 newest listings, no pagination
+      const rawProperties = await db
+        .collection("properties5jancleaned")
+        .find({})
+        .sort({ date_listed: -1 }) // Sort by newest first
+        .limit(50)
+        .toArray();
+
+      // Convert price to numeric format for consistency
+      const properties = rawProperties.map(prop => {
+        let priceNumeric = prop.price;
+        if (typeof prop.price === 'string') {
+          const cleaned = prop.price
+            .replace(/RM/gi, '')
+            .replace(/,/g, '')
+            .replace(/\s/g, '')
+            .trim();
+          priceNumeric = parseFloat(cleaned) || 0;
+        } else if (typeof prop.price === 'number') {
+          priceNumeric = prop.price;
+        }
+        return { ...prop, price: priceNumeric };
+      });
+
       return res.json({
-        properties: [],
+        properties,
+        isPersonalized: false,
         pagination: {
           currentPage: 1,
-          totalPages: 0,
-          totalCount: 0,
-          pageSize: 60,
+          totalPages: 1,
+          totalCount: properties.length,
+          pageSize: 50,
           hasMore: false,
         },
       });
     }
-
-    // Get pagination parameters
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 60;
-    const skip = (page - 1) * limit;
 
     // Build aggregation pipeline for scoring
     const pipeline = [
@@ -991,6 +1021,7 @@ app.get("/api/properties/personalized", async (req, res) => {
 
     res.json({
       properties: cleanedProperties,
+      isPersonalized: true,
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(totalCount / limit),
