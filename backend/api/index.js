@@ -89,14 +89,11 @@ app.get("/api/properties", async (req, res) => {
       );
       // Search in both address (strict word-boundary) and title (general match)
       const generalLocationRegex = new RegExp(locationTerm, "i");
-      
+
       // Add to existing $and or create new one
       query.$and = query.$and || [];
       query.$and.push({
-        $or: [
-          { address: locationRegex },
-          { title: generalLocationRegex }
-        ]
+        $or: [{ address: locationRegex }, { title: generalLocationRegex }],
       });
     }
 
@@ -307,9 +304,11 @@ app.get("/api/properties/personalized", async (req, res) => {
       (normalizedPrefs.keywords && normalizedPrefs.keywords.length > 0) ||
       normalizedPrefs.min_size_sqft != null ||
       (normalizedPrefs.rooms &&
-        (normalizedPrefs.rooms.min != null || normalizedPrefs.rooms.max != null)) ||
+        (normalizedPrefs.rooms.min != null ||
+          normalizedPrefs.rooms.max != null)) ||
       (normalizedPrefs.toilets &&
-        (normalizedPrefs.toilets.min != null || normalizedPrefs.toilets.max != null));
+        (normalizedPrefs.toilets.min != null ||
+          normalizedPrefs.toilets.max != null));
 
     console.log("Has preferences:", hasPreferences);
 
@@ -320,8 +319,10 @@ app.get("/api/properties/personalized", async (req, res) => {
 
     // FR_12: Fall back to default ranking (by recency) if no preferences
     if (!hasPreferences) {
-      console.log("No preferences found. Using default ranking by recency. Showing only 50 newest listings.");
-      
+      console.log(
+        "No preferences found. Using default ranking by recency. Showing only 50 newest listings."
+      );
+
       // Only show top 50 newest listings, no pagination
       const rawProperties = await db
         .collection("properties5jancleaned")
@@ -331,16 +332,16 @@ app.get("/api/properties/personalized", async (req, res) => {
         .toArray();
 
       // Convert price to numeric format for consistency
-      const properties = rawProperties.map(prop => {
+      const properties = rawProperties.map((prop) => {
         let priceNumeric = prop.price;
-        if (typeof prop.price === 'string') {
+        if (typeof prop.price === "string") {
           const cleaned = prop.price
-            .replace(/RM/gi, '')
-            .replace(/,/g, '')
-            .replace(/\s/g, '')
+            .replace(/RM/gi, "")
+            .replace(/,/g, "")
+            .replace(/\s/g, "")
             .trim();
           priceNumeric = parseFloat(cleaned) || 0;
-        } else if (typeof prop.price === 'number') {
+        } else if (typeof prop.price === "number") {
           priceNumeric = prop.price;
         }
         return { ...prop, price: priceNumeric };
@@ -432,10 +433,10 @@ app.get("/api/properties/personalized", async (req, res) => {
                   input: {
                     $arrayElemAt: [
                       { $split: [{ $toString: "$beds" }, " "] },
-                      0
-                    ]
-                  }
-                }
+                      0,
+                    ],
+                  },
+                },
               },
               to: "double",
               onError: 0,
@@ -449,10 +450,10 @@ app.get("/api/properties/personalized", async (req, res) => {
                   input: {
                     $arrayElemAt: [
                       { $split: [{ $toString: "$baths" }, " "] },
-                      0
-                    ]
-                  }
-                }
+                      0,
+                    ],
+                  },
+                },
               },
               to: "double",
               onError: 0,
@@ -1034,7 +1035,12 @@ app.get("/api/properties/personalized", async (req, res) => {
     console.error("❌ Personalized properties error:", error);
     console.error("Error message:", error.message);
     console.error("Stack trace:", error.stack);
-    res.status(500).json({ error: "Failed to fetch personalized properties", details: error.message });
+    res
+      .status(500)
+      .json({
+        error: "Failed to fetch personalized properties",
+        details: error.message,
+      });
   }
 });
 
@@ -1190,32 +1196,101 @@ app.post("/api/properties/search", async (req, res) => {
     pipeline.push({
       $addFields: {
         price_num: {
-          $toInt: {
-            $replaceAll: {
-              input: {
-                $replaceAll: {
-                  input: { $toString: { $ifNull: ["$price", 0] } },
-                  find: "RM ",
-                  replacement: "",
+          $convert: {
+            input: {
+              $replaceAll: {
+                input: {
+                  $replaceAll: {
+                    input: { $toString: { $ifNull: ["$price", 0] } },
+                    find: "RM ",
+                    replacement: "",
+                  },
                 },
+                find: ",",
+                replacement: "",
               },
-              find: ",",
-              replacement: "",
             },
+            to: "int",
+            onError: 0,
+            onNull: 0,
           },
         },
         beds_num: {
-          $cond: {
-            if: { $eq: ["$beds", "N/A"] },
-            then: 0,
-            else: { $toInt: "$beds" },
+          $convert: {
+            input: {
+              $cond: {
+                if: {
+                  $or: [
+                    { $eq: ["$beds", "N/A"] },
+                    { $eq: [{ $type: "$beds" }, "missing"] },
+                  ],
+                },
+                then: "0",
+                else: {
+                  $cond: {
+                    if: {
+                      $in: [
+                        { $type: "$beds" },
+                        ["int", "long", "double", "decimal"],
+                      ],
+                    },
+                    then: { $toString: "$beds" },
+                    else: {
+                      $trim: {
+                        input: {
+                          $arrayElemAt: [
+                            { $split: [{ $toString: "$beds" }, " "] },
+                            0,
+                          ],
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            to: "int",
+            onError: 0,
+            onNull: 0,
           },
         },
         baths_num: {
-          $cond: {
-            if: { $eq: ["$baths", "N/A"] },
-            then: 0,
-            else: { $toInt: "$baths" },
+          $convert: {
+            input: {
+              $cond: {
+                if: {
+                  $or: [
+                    { $eq: ["$baths", "N/A"] },
+                    { $eq: [{ $type: "$baths" }, "missing"] },
+                  ],
+                },
+                then: "0",
+                else: {
+                  $cond: {
+                    if: {
+                      $in: [
+                        { $type: "$baths" },
+                        ["int", "long", "double", "decimal"],
+                      ],
+                    },
+                    then: { $toString: "$baths" },
+                    else: {
+                      $trim: {
+                        input: {
+                          $arrayElemAt: [
+                            { $split: [{ $toString: "$baths" }, " "] },
+                            0,
+                          ],
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            to: "int",
+            onError: 0,
+            onNull: 0,
           },
         },
         sqft_num: {
