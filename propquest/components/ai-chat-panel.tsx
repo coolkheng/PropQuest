@@ -63,6 +63,90 @@ export function AiChatPanel({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Restore chat history from sessionStorage on mount
+  useEffect(() => {
+    const savedMessages = sessionStorage.getItem("aiChatMessages");
+    const savedPreferences = sessionStorage.getItem("aiChatPreferences");
+    const savedConversation = sessionStorage.getItem("aiChatConversation");
+    const savedIsPersonalized = sessionStorage.getItem("aiIsPersonalized");
+
+    if (savedMessages) {
+      try {
+        const parsedMessages = JSON.parse(savedMessages);
+        // Convert timestamp strings back to Date objects
+        const messagesWithDates = parsedMessages.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+        }));
+        setMessages(messagesWithDates);
+        console.log(
+          "✅ Restored AI chat history:",
+          messagesWithDates.length,
+          "messages"
+        );
+      } catch (error) {
+        console.error("Error restoring chat messages:", error);
+      }
+    }
+
+    if (savedPreferences) {
+      try {
+        setPreferences(JSON.parse(savedPreferences));
+      } catch (error) {
+        console.error("Error restoring preferences:", error);
+      }
+    }
+
+    if (savedConversation) {
+      try {
+        conversation.current = JSON.parse(savedConversation);
+      } catch (error) {
+        console.error("Error restoring conversation:", error);
+      }
+    }
+
+    if (savedIsPersonalized) {
+      try {
+        setIsPersonalizedActive(JSON.parse(savedIsPersonalized));
+      } catch (error) {
+        console.error("Error restoring personalized state:", error);
+      }
+    }
+  }, []);
+
+  // Save chat history to sessionStorage whenever messages or preferences change
+  useEffect(() => {
+    if (messages.length > 1) {
+      // Only save if there are user messages (not just welcome message)
+      sessionStorage.setItem("aiChatMessages", JSON.stringify(messages));
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (Object.keys(Exisiting_preferences).length > 0) {
+      sessionStorage.setItem(
+        "aiChatPreferences",
+        JSON.stringify(Exisiting_preferences)
+      );
+    }
+  }, [Exisiting_preferences]);
+
+  useEffect(() => {
+    if (conversation.current.length > 0) {
+      sessionStorage.setItem(
+        "aiChatConversation",
+        JSON.stringify(conversation.current)
+      );
+    }
+  }, [conversation.current]);
+
+  useEffect(() => {
+    sessionStorage.setItem(
+      "aiIsPersonalized",
+      JSON.stringify(isPersonalizedActive)
+    );
+  }, [isPersonalizedActive]);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages, isAiTyping]);
