@@ -7,6 +7,8 @@ interface MapBackgroundProps {
   hoveredProperty: string | null;
   Property: Property[];
   isAISearch?: boolean; // true when showing AI search results, false/undefined for initial load
+  geocodedCache?: Record<string, any>;
+  setGeocodedCache?: (cache: Record<string, any>) => void;
 }
 
 interface Property {
@@ -34,6 +36,8 @@ export function MapBackground({
   hoveredProperty,
   Property,
   isAISearch = false,
+  geocodedCache = {},
+  setGeocodedCache,
 }: MapBackgroundProps) {
   const mapRef = useRef(null);
   const viewRef = useRef<any>(null);
@@ -94,7 +98,6 @@ export function MapBackground({
         const propertiesToGeocode = isAISearch
           ? Property
           : Property.slice(0, 50);
-        console.log("Geocoding properties:", propertiesToGeocode.length);
 
         // Clear previous graphics
         graphicsMapRef.current.clear();
@@ -103,6 +106,58 @@ export function MapBackground({
 
         // Loop through properties
         propertiesToGeocode.forEach((property) => {
+          // Check if we have cached coordinates
+          const cached = geocodedCache[property._id];
+
+          if (cached && cached.location) {
+            // Use cached coordinates - NO API CALL
+            const location = cached.location;
+
+            // Center map on first property
+            if (isFirstProperty) {
+              viewRef.current.center = [location.x, location.y];
+              isFirstProperty = false;
+            }
+
+            const point = {
+              type: "point",
+              longitude: location.x,
+              latitude: location.y,
+            };
+
+            const markerSymbol = {
+              type: "picture-marker",
+              url: "/location-pin.png",
+              width: "40px",
+              height: "40px",
+            };
+
+            const graphic = new Graphic({
+              geometry: point,
+              symbol: markerSymbol,
+              attributes: {
+                _id: property._id,
+                title: property.title,
+                address: property.address,
+                price: property.price,
+                beds: property.beds,
+                baths: property.baths,
+                sqft: property.sqft,
+                url: property.url,
+                image:
+                  Array.isArray(property.images) && property.images.length > 0
+                    ? property.images[0]
+                    : null,
+              },
+            });
+
+            viewRef.current.graphics.add(graphic);
+            graphicsMapRef.current.set(property._id, graphic);
+            return; // Skip geocoding API call
+          }
+
+          // Only call geocoding API if not in cache
+          console.log(`Geocoding: ${property.address}`);
           locator
             .addressToLocations(geocodeUrl, {
               address: { address: property.address },
@@ -111,6 +166,20 @@ export function MapBackground({
             .then((results: any[]) => {
               if (results.length) {
                 const location = results[0].location;
+
+                // Cache the result
+                if (setGeocodedCache) {
+                  const newCache = {
+                    ...geocodedCache,
+                    [property._id]: {
+                      location: { x: location.x, y: location.y },
+                      address: property.address,
+                      timestamp: Date.now(),
+                    },
+                  };
+                  setGeocodedCache(newCache);
+                  console.log(`💾 Cached location for: ${property.address}`);
+                }
 
                 // Center map on first property
                 if (isFirstProperty) {
@@ -193,18 +262,18 @@ export function MapBackground({
                 },
               });
 
-            if (viewRef.current) {
-              viewRef.current.graphics.add(fallbackGraphic);
-              graphicsMapRef.current.set(property._id, fallbackGraphic);
+              if (viewRef.current) {
+                viewRef.current.graphics.add(fallbackGraphic);
+                graphicsMapRef.current.set(property._id, fallbackGraphic);
 
-              // Show warning if too many failures (rate limit)
-              if (failedGeocodesRef.current >= MAX_GEOCODE_FAILURES) {
-                console.warn(
-                  "Multiple geocoding failures detected. Map service may be rate-limited."
-                );
+                // Show warning if too many failures (rate limit)
+                if (failedGeocodesRef.current >= MAX_GEOCODE_FAILURES) {
+                  console.warn(
+                    "Multiple geocoding failures detected. Map service may be rate-limited."
+                  );
+                }
               }
-            }
-          });
+            });
         });
 
         // Hover-only popup using pointer-move and hitTest

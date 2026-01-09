@@ -7,7 +7,7 @@ interface Property {
   url: string;
   title: string;
   address: string;
-  price: string;
+  price: number;
   beds: string;
   baths: string;
   sqft: string;
@@ -26,6 +26,8 @@ interface MapViewProps {
   onPropertyHover: (id: string | null) => void;
   onPropertyClick: (id: string) => void;
   isAISearch?: boolean;
+  geocodedCache?: Record<string, any>;
+  setGeocodedCache?: (cache: Record<string, any>) => void;
 }
 
 export function MapView({
@@ -34,6 +36,8 @@ export function MapView({
   onPropertyHover,
   onPropertyClick,
   isAISearch,
+  geocodedCache,
+  setGeocodedCache,
 }: MapViewProps) {
   return (
     <div className="w-full h-full relative">
@@ -41,6 +45,8 @@ export function MapView({
         Property={properties}
         hoveredProperty={hoveredProperty}
         isAISearch={isAISearch}
+        geocodedCache={geocodedCache}
+        setGeocodedCache={setGeocodedCache}
       />
       <PropertyCardsCarousel
         properties={properties}

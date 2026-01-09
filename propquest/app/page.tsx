@@ -13,7 +13,7 @@ export interface Property {
   url: string;
   title: string;
   address: string;
-  price: string;
+  price: number;
   beds: string;
   baths: string;
   sqft: string;
@@ -31,9 +31,45 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [hoveredProperty, setHoveredProperty] = useState<string | null>(null);
   const [isAISearch, setIsAISearch] = useState<boolean>(false);
+  const [geocodedCache, setGeocodedCache] = useState<Record<string, any>>({});
   const { user } = useSession();
 
+  // Restore search state from sessionStorage on mount
   useEffect(() => {
+    const savedProperties = sessionStorage.getItem("searchProperties");
+    const savedIsAISearch = sessionStorage.getItem("isAISearch");
+    const savedGeocodedCache = sessionStorage.getItem("geocodedCache");
+
+    if (savedProperties && savedIsAISearch) {
+      try {
+        const parsedProperties = JSON.parse(savedProperties);
+        const parsedIsAISearch = JSON.parse(savedIsAISearch);
+        setProperties(parsedProperties);
+        setIsAISearch(parsedIsAISearch);
+
+        // Restore geocoded cache
+        if (savedGeocodedCache) {
+          const parsedCache = JSON.parse(savedGeocodedCache);
+          setGeocodedCache(parsedCache);
+          console.log(
+            "✅ Restored geocoded cache:",
+            Object.keys(parsedCache).length,
+            "locations"
+          );
+        }
+
+        console.log(
+          "✅ Restored search state:",
+          parsedProperties.length,
+          "properties"
+        );
+        return; // Skip default fetch
+      } catch (error) {
+        console.error("Error restoring search state:", error);
+      }
+    }
+
+    // Only fetch default properties if no saved search state
     const fetchProperties = async () => {
       try {
         const res = await axios.get(
@@ -49,6 +85,19 @@ export default function HomePage() {
 
     fetchProperties();
   }, []);
+
+  // Save search state to sessionStorage whenever properties or isAISearch changes
+  useEffect(() => {
+    if (properties.length > 0) {
+      sessionStorage.setItem("searchProperties", JSON.stringify(properties));
+      sessionStorage.setItem("isAISearch", JSON.stringify(isAISearch));
+
+      // Save geocoded cache
+      if (Object.keys(geocodedCache).length > 0) {
+        sessionStorage.setItem("geocodedCache", JSON.stringify(geocodedCache));
+      }
+    }
+  }, [properties, isAISearch, geocodedCache]);
 
   const handlePropertyClick = (propertyId: string) => {
     sessionStorage.setItem("propertyDetailReferrer", "/");
@@ -78,6 +127,8 @@ export default function HomePage() {
             onPropertyHover={setHoveredProperty}
             onPropertyClick={handlePropertyClick}
             isAISearch={isAISearch}
+            geocodedCache={geocodedCache}
+            setGeocodedCache={setGeocodedCache}
           />
         </div>
 
