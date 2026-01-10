@@ -158,8 +158,6 @@ export function MapBackground({
             return; // Skip geocoding API call
           }
 
-          // Only call geocoding API if not in cache
-          console.log(`Geocoding: ${property.address}`);
           locator
             .addressToLocations(geocodeUrl, {
               address: { address: property.address },
@@ -180,7 +178,6 @@ export function MapBackground({
                     },
                   };
                   setGeocodedCache(newCache);
-                  console.log(`💾 Cached location for: ${property.address}`);
                 }
 
                 // Center map on first property
