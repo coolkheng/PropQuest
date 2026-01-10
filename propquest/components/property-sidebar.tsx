@@ -10,6 +10,7 @@ interface PropertySidebarProps {
     baths: string
     sqft: string
     facilities: string[]
+    url?: string
   }
 }
 
@@ -23,7 +24,7 @@ const agent =  {
 export function PropertySidebar({ propertyData }: PropertySidebarProps) {
   return (
     <div className="space-y-6">
-      <ViewOnPropertyGuru />
+      <ViewOnPropertyGuru propertyUrl={propertyData.url} />
       <QuickStats
         beds={parseInt(propertyData.beds)}
         baths={parseInt(propertyData.baths)}
