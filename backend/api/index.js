@@ -24,14 +24,15 @@ const cookieParser = require("cookie-parser");
 // Allow cross-origin requests from the frontend and include credentials (cookies)
 const allowedOrigins = [
   "http://localhost:3000",
-  "http://localhost:3001", 
-  process.env.FRONTEND_ORIGIN,
+  "http://localhost:3001",
+  process.env.FRONTEND_URL, // Production Vercel URL
+  process.env.FRONTEND_ORIGIN, // Legacy support
 ].filter(Boolean); // Remove undefined values
 
 app.use(
   cors({
     origin: allowedOrigins,
-    credentials: true,
+    credentials: true, // CRITICAL: Required for httpOnly cookies cross-domain
   })
 );
 
@@ -1671,11 +1672,11 @@ app.post("/api/auth/login", async (req, res) => {
     const secret = process.env.JWT_SECRET || "dev-secret";
     const token = jwt.sign(payload, secret, { expiresIn: "7d" });
 
-    // Set httpOnly cookie for session (dev defaults: not secure)
+    // Set httpOnly cookie for session
     res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
+      httpOnly: true, // Secure: JS can't access (XSS protection)
+      secure: process.env.NODE_ENV === "production", // Only HTTPS in production
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // "none" required for cross-domain
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: "/",
     });
