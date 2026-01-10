@@ -8,6 +8,13 @@ const { OpenAI } = require("openai");
 // Load environment variables
 dotenv.config();
 
+// DEVELOPMENT ONLY: Disable SSL verification if explicitly set
+// WARNING: Never use this in production!
+if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') {
+  console.warn('⚠️  WARNING: SSL certificate verification is disabled. This should only be used in development!');
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
 const app = express();
 // Allow overriding the port via environment (useful if 5000 is occupied on macOS)
 const port = process.env.PORT || 5001;
@@ -15,6 +22,12 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
 // Allow cross-origin requests from the frontend and include credentials (cookies)
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001", 
+  process.env.FRONTEND_ORIGIN,
+].filter(Boolean); // Remove undefined values
+
 app.use(
   cors({
     origin: process.env.FRONTEND_ORIGIN || "http://localhost:3000",
@@ -27,8 +40,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// MongoDB connection setup
-const client = new MongoClient(process.env.MONGODB_URI);
+// MongoDB connection setup with SSL options
+const client = new MongoClient(process.env.MONGODB_URI, {
+  tls: true,
+  tlsAllowInvalidCertificates: process.env.NODE_ENV === 'development',
+  tlsAllowInvalidHostnames: process.env.NODE_ENV === 'development',
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+});
 
 async function connectToDatabase() {
   try {
