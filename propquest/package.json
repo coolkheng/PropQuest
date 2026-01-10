@@ -19,7 +19,7 @@
     "esri-loader": "^3.7.0",
     "lucide-react": "^0.513.0",
     "mongodb": "^6.17.0",
-    "next": "15.2.4",
+    "next": "^16.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^3.5.0",
