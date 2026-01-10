@@ -7,6 +7,8 @@ import { PropertyMainContent } from "@/components/property-main-content";
 import { PropertySidebar } from "@/components/property-sidebar";
 import { PriceHistory } from "@/components/price-history";
 
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
+
 interface Property {
   _id: string;
   url: string;
@@ -62,9 +64,7 @@ export default function PropertyDetailPage({
       try {
         const { id } = await params;
 
-        const response = await axios.get(
-          `http://localhost:5001/api/properties/${id}`
-        );
+        const response = await axios.get(`${API_URL}/api/properties/${id}`);
         setPropertyData(response.data);
       } catch {
         console.error("Property not found or server error");

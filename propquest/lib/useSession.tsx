@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
+
 export type SessionUser = {
   _id: string;
   email: string;
@@ -17,7 +19,7 @@ export function useSession() {
   const fetchMe = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get("http://localhost:5001/api/auth/me", {
+      const res = await axios.get(`${API_URL}/api/auth/me`, {
         withCredentials: true,
       });
       setUser(res.data || null);
@@ -35,7 +37,7 @@ export function useSession() {
   const logout = useCallback(async () => {
     try {
       await axios.post(
-        "http://localhost:5001/api/auth/logout",
+        `${API_URL}/api/auth/logout`,
         {},
         { withCredentials: true }
       );

@@ -8,6 +8,8 @@ import { ListingHeader } from "@/components/listing-header";
 import { PropertyGrid } from "@/components/property-grid";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
 import { useSession } from "@/lib/useSession";
 import axios from "axios";
 
@@ -62,7 +64,7 @@ export default function ForYouPage() {
         });
 
         const res = await axios.get(
-          `http://localhost:5001/api/properties/personalized?${params.toString()}`,
+          `${API_URL}/api/properties/personalized?${params.toString()}`,
           { withCredentials: true }
         );
 
@@ -175,9 +177,7 @@ export default function ForYouPage() {
         {isLoading && properties.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">
-              Loading properties...
-            </p>
+            <p className="mt-4 text-gray-600">Loading properties...</p>
           </div>
         ) : displayedProperties.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
@@ -212,7 +212,8 @@ export default function ForYouPage() {
                       Get Personalized Recommendations
                     </h3>
                     <p className="text-gray-600 mb-4">
-                      Set your preferences to see properties ranked specifically for you. For now, showing the 50 newest listings:
+                      Set your preferences to see properties ranked specifically
+                      for you. For now, showing the 50 newest listings:
                     </p>
                     <Button
                       onClick={() => router.push("/preferences")}

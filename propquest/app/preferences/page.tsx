@@ -7,6 +7,8 @@ import Link from "next/link";
 import { TopBar } from "@/components/top-bar";
 import { useSession } from "@/lib/useSession";
 
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
+
 type Preferences = {
   preferred_locations: string[];
   budget_range: { min: number | null; max: number | null };
@@ -47,12 +49,9 @@ export default function PreferencesPage() {
     if (!user) return;
     const fetchPrefs = async () => {
       try {
-        const res = await axios.get(
-          "http://localhost:5001/api/users/me/preferences",
-          {
-            withCredentials: true,
-          }
-        );
+        const res = await axios.get(`${API_URL}/api/users/me/preferences`, {
+          withCredentials: true,
+        });
         setPrefs(res.data.preferences);
         setLocationsRaw(
           (res.data.preferences?.preferred_locations || []).join(", ")
@@ -118,7 +117,7 @@ export default function PreferencesPage() {
       };
 
       const res = await axios.post(
-        "http://localhost:5001/api/users/me/preferences",
+        `${API_URL}/api/users/me/preferences`,
         { preferences: outgoing },
         { withCredentials: true }
       );

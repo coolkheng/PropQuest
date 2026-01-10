@@ -8,6 +8,8 @@ import { AiChatPanel } from "@/components/ai-chat-panel";
 import { useSession } from "@/lib/useSession";
 import axios from "axios";
 
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
+
 export interface Property {
   _id: string;
   url: string;
@@ -72,9 +74,7 @@ export default function HomePage() {
     // Only fetch default properties if no saved search state
     const fetchProperties = async () => {
       try {
-        const res = await axios.get(
-          "http://localhost:5001/api/properties?limit=100"
-        );
+        const res = await axios.get(`${API_URL}/api/properties?limit=100`);
         // Handle new API response format
         const data = res.data.properties || res.data;
         setProperties(Array.isArray(data) ? data : []);

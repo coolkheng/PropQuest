@@ -8,6 +8,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock, User, Phone } from "lucide-react";
+
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -137,7 +139,7 @@ export default function RegisterPage() {
       // No initial preferences are sent during signup — user will set them in Preferences page
 
       // Backend default uses PORT env or 5001 to avoid macOS port conflicts
-      await axios.post("http://localhost:5001/api/auth/register", payload);
+      await axios.post(`${API_URL}/api/auth/register`, payload);
 
       setIsLoading(false);
       // On success, redirect to login

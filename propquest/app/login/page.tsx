@@ -8,6 +8,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +28,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await axios.post(
-        "http://localhost:5001/api/auth/login",
+        `${API_URL}/api/auth/login`,
         { email, password },
         { withCredentials: true }
       );

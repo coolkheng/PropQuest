@@ -8,6 +8,8 @@ import { ListingControls } from "@/components/listing-controls";
 import { ListingHeader } from "@/components/listing-header";
 import { PropertyGrid } from "@/components/property-grid";
 import { FiltersModal, Filters } from "@/components/filters-modal";
+
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
 import { SortOption } from "@/components/sort-button";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -96,7 +98,7 @@ export default function ListingPage() {
         }
 
         const res = await axios.get(
-          `http://localhost:5001/api/properties?${params.toString()}`
+          `${API_URL}/api/properties?${params.toString()}`
         );
 
         setProperties(res.data.properties || []);

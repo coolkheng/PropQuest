@@ -8,6 +8,8 @@ import { useState, useRef, useEffect } from "react";
 import { MessageSquare, ThumbsUp, ThumbsDown, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
 import { AiPersonalizedToggle } from "./ai-personalized-toggle";
 
 interface ChatMessage {
@@ -173,12 +175,9 @@ export function AiChatPanel({
 
   const classifyUserIntent = async (message: string): Promise<string> => {
     try {
-      const response = await axios.post(
-        "http://localhost:5001/api/chat/classify",
-        {
-          message,
-        }
-      );
+      const response = await axios.post(`${API_URL}/api/chat/classify`, {
+        message,
+      });
       return response.data.intent;
     } catch (error) {
       console.error("Error classifying user intent:", error);
@@ -210,7 +209,7 @@ export function AiChatPanel({
 
         if (intent === "search") {
           const aiGeneratedFilters = await axios.post(
-            "http://localhost:5001/api/chat/search",
+            `${API_URL}/api/chat/search`,
             {
               message: userMessageContent,
             }
@@ -219,7 +218,7 @@ export function AiChatPanel({
           console.log(aiGeneratedFilters.data.reply);
 
           const response = await axios.post(
-            "http://localhost:5001/api/properties/search",
+            `${API_URL}/api/properties/search`,
             {
               filters: aiGeneratedFilters.data.reply,
             }
@@ -247,7 +246,7 @@ export function AiChatPanel({
           setMessages((prev) => [...prev, aiResponse]);
         } else if (intent === "question") {
           const backendResponse = await axios.post(
-            "http://localhost:5001/api/chat/questions",
+            `${API_URL}/api/chat/questions`,
             {
               message: userMessageContent,
             }
@@ -308,7 +307,7 @@ export function AiChatPanel({
 
         try {
           const backendResponse = await axios.post(
-            "http://localhost:5001/api/chat/preferences",
+            `${API_URL}/api/chat/preferences`,
             {
               conversation: conversation.current,
             }
@@ -361,7 +360,7 @@ export function AiChatPanel({
             console.log("Normalized preferences:", normalizedPreferences);
 
             const response = await axios.post(
-              "http://localhost:5001/api/properties/search",
+              `${API_URL}/api/properties/search`,
               {
                 filters: JSON.stringify(normalizedPreferences),
               }
