@@ -15,7 +15,7 @@ export function ContactAgent({ agent }: ContactAgentProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl bg-clip-text text-transparent bg-blue-gradient">Contact Agent</CardTitle>
+        <CardTitle className="text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">Contact Agent</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="text-center">
@@ -32,7 +32,7 @@ export function ContactAgent({ agent }: ContactAgentProps) {
         </div>
 
         <div className="space-y-3">
-          <Button className="w-full bg-blue-gradient hover:opacity-90 border-0">
+          <Button className="w-full bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 hover:opacity-90 border-0">
             <Phone className="h-4 w-4 mr-2" />
             Call Now
           </Button>

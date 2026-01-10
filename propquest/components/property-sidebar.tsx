@@ -2,32 +2,33 @@ import { ContactAgent } from "./contact-agent"
 import { QuickStats } from "./quick-stats"
 import { Facilities } from "./facilities"
 import { SimilarProperties } from "./similar-properties"
+import { ViewOnPropertyGuru } from "./view-on-propertyguru"
 
 interface PropertySidebarProps {
   propertyData: {
-    agent: {
-      name: string
-      company: string
-      phone: string
-      email: string
-    }
-    bedrooms: number
-    bathrooms: number
-    builtUpArea: string
-    parking: number
+    beds: string
+    baths: string
+    sqft: string
     facilities: string[]
   }
 }
 
+const agent =  {
+    name: "Sarah Lim",
+    company: "PropQuest Realty",
+    phone: "+60 12-345 6789",
+    email: "sarah.lim@propquest.com",
+  }
+
 export function PropertySidebar({ propertyData }: PropertySidebarProps) {
   return (
     <div className="space-y-6">
-      <ContactAgent agent={propertyData.agent} />
+      <ViewOnPropertyGuru />
       <QuickStats
-        bedrooms={propertyData.bedrooms}
-        bathrooms={propertyData.bathrooms}
-        builtUpArea={propertyData.builtUpArea}
-        parking={propertyData.parking}
+        beds={parseInt(propertyData.beds)}
+        baths={parseInt(propertyData.baths)}
+        sqft={propertyData.sqft}
+        parking={1}
       />
       <Facilities facilities={propertyData.facilities} />
       <SimilarProperties />

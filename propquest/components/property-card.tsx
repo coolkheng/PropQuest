@@ -49,7 +49,7 @@ export function PropertyCard({
       >
         {property.bestFor && (
           <div className="absolute top-2 left-2 z-10">
-            <Badge className="bg-blue-gradient text-white text-xs">Best for you</Badge>
+            <Badge className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 text-white text-xs">Best for you</Badge>
           </div>
         )}
         <div className="relative">

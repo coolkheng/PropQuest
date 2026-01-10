@@ -4,7 +4,7 @@ export function SimilarProperties() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl bg-clip-text text-transparent bg-blue-gradient">Similar Properties</CardTitle>
+        <CardTitle className="text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">Similar Properties</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -18,7 +18,7 @@ export function SimilarProperties() {
               <div className="flex-1">
                 <h4 className="font-medium text-sm">Modern Condo in SS2</h4>
                 <p className="text-gray-600 text-xs">2 bed • 2 bath</p>
-                <p className="bg-clip-text text-transparent bg-blue-gradient font-semibold text-sm">RM 2,200/month</p>
+                <p className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 font-semibold text-sm">RM 2,200/month</p>
               </div>
             </div>
           ))}

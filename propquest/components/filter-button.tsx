@@ -10,7 +10,7 @@ interface FilterButtonProps {
   className?: string
 }
 
-export function FilterButton({ filterCount = 6, onClick, className = "" }: FilterButtonProps) {
+export function FilterButton({ filterCount = 0, onClick, className = "" }: FilterButtonProps) {
   return (
     <Button
       variant="outline"
@@ -19,7 +19,7 @@ export function FilterButton({ filterCount = 6, onClick, className = "" }: Filte
     >
       <Filter className="h-4 w-4 mr-2" />
       Filters
-      {filterCount > 0 && <Badge className="ml-2 bg-blue-gradient">{filterCount}</Badge>}
+      {filterCount > 0 && <Badge className="ml-2 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400">{filterCount}</Badge>}
     </Button>
   )
 }
