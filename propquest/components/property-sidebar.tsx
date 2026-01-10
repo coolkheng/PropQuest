@@ -2,6 +2,7 @@ import { ContactAgent } from "./contact-agent"
 import { QuickStats } from "./quick-stats"
 import { Facilities } from "./facilities"
 import { SimilarProperties } from "./similar-properties"
+import { ViewOnPropertyGuru } from "./view-on-propertyguru"
 
 interface PropertySidebarProps {
   propertyData: {
@@ -22,7 +23,7 @@ const agent =  {
 export function PropertySidebar({ propertyData }: PropertySidebarProps) {
   return (
     <div className="space-y-6">
-      <ContactAgent agent={agent} />
+      <ViewOnPropertyGuru />
       <QuickStats
         beds={parseInt(propertyData.beds)}
         baths={parseInt(propertyData.baths)}
