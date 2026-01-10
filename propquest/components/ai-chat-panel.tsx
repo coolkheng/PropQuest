@@ -3,7 +3,6 @@
 import React from "react";
 import axios from "axios";
 import { Property } from "../app/page"; // Import the Property interface
-
 import { useState, useRef, useEffect } from "react";
 import { MessageSquare, ThumbsUp, ThumbsDown, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";

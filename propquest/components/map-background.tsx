@@ -32,6 +32,8 @@ interface Property {
 const geocodeUrl =
   "https://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer";
 
+const frontendURL = process.env.NEXT_PUBLIC_FRONTEND_ORIGIN || "http://localhost:3000";
+
 export function MapBackground({
   hoveredProperty,
   Property,
@@ -48,7 +50,7 @@ export function MapBackground({
   const failedGeocodesRef = useRef(0);
   const MAX_GEOCODE_FAILURES = 10;
   const mapLoadStartTimeRef = useRef<number>(0);
-
+   
   // Effect for initial map setup and geocoding - runs only when Property changes
   useEffect(() => {
     let moveHandler: any | null = null;
@@ -323,7 +325,7 @@ export function MapBackground({
                         ${
                           attrs._id
                             ? `<div style="margin-top:10px;">
-                                <a href="${`http://localhost:3000/property/${attrs._id}`}" 
+                                <a href="${`${frontendURL}/property/${attrs._id}`}" 
                                    style="display:inline-block;padding:8px 16px;background:linear-gradient(to right, #2563eb, #3b82f6, #60a5fa);color:white;text-decoration:none;border-radius:6px;font-weight:600;text-align:center;transition:opacity 0.2s;"
                                    onmouseover="this.style.opacity='0.9'" 
                                    onmouseout="this.style.opacity='1'">
