@@ -10,7 +10,7 @@ dotenv.config();
 
 const app = express();
 // Allow overriding the port via environment (useful if 5000 is occupied on macOS)
-const port = process.env.NEXT_PUBLIC_BACKEND_URL || 5001;
+const port = process.env.PORT || 5001;
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
