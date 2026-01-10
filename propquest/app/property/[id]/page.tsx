@@ -32,11 +32,9 @@ interface Property {
 export default function PropertyDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const [referrer, setReferrer] = useState<string>("/");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [propertyData, setPropertyData] = useState<Property | null>(null);
 
   useEffect(() => {
@@ -62,18 +60,14 @@ export default function PropertyDetailPage({
   useEffect(() => {
     const fetchProperty = async () => {
       try {
-        setLoading(true);
         const { id } = await params;
 
         const response = await axios.get(
           `http://localhost:5001/api/properties/${id}`
         );
         setPropertyData(response.data);
-      } catch (err) {
-        console.error(err);
-        setError("Property not found or server error");
-      } finally {
-        setLoading(false);
+      } catch {
+        console.error("Property not found or server error");
       }
     };
 

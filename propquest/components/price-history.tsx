@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -39,6 +39,11 @@ export function PriceHistory({
   const [showInsights, setShowInsights] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  // All hooks MUST be at the top before any conditional logic
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const gradId = `priceGradient-${useId()}`;
+
   if (!priceHistory || priceHistory.length === 0) {
     return (
       <Card>
@@ -70,10 +75,6 @@ export function PriceHistory({
       </Card>
     );
   }
-
-  // Avoid potential SSR/hydration issues with Recharts by rendering after mount
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   // Early no-data UI
   const hasData = Array.isArray(priceHistory) && priceHistory.length > 0;
@@ -130,7 +131,13 @@ export function PriceHistory({
   };
 
   // Custom tooltip
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({
+    active,
+    payload,
+  }: {
+    active?: boolean;
+    payload?: Array<{ payload: { date: string }; value: number }>;
+  }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
@@ -145,10 +152,7 @@ export function PriceHistory({
     }
     return null;
   };
-
-  // Unique id for gradient to avoid collisions across multiple charts
-  const gradId = `priceGradient-${useId()}`;
-
+                    
   const handleInsightsClick = () => {
     if (!showInsights) {
       setIsAnalyzing(true);

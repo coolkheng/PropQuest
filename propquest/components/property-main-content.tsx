@@ -1,6 +1,5 @@
 import { ImageGallery } from "./image-gallery"
 import { ListingOverview } from "./listing-overview"
-import { PriceHistory } from "./price-history"
 import { PropertyDetails } from "./property-details"
 import { WhatsNearby } from "./whats-nearby"
 

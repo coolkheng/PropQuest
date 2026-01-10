@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TopBar } from "@/components/top-bar";
-import { ListingControls } from "@/components/listing-controls";
 import { ListingHeader } from "@/components/listing-header";
 import { PropertyGrid } from "@/components/property-grid";
 import { Button } from "@/components/ui/button";

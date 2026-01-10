@@ -1,8 +1,6 @@
 "use client"
 
-import { Star } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { formatPrice } from "@/lib/utils"
 
@@ -12,7 +10,7 @@ interface MapPropertyCardProps {
   url: string;
   title: string;
   address: string;
-  price: string;
+  price: number;
   beds: string;
   baths: string;
   sqft: string;
