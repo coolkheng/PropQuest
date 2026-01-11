@@ -1735,7 +1735,13 @@ app.get("/api/auth/me", async (req, res) => {
 // --- AUTH: Logout (clear cookie) ---
 app.post("/api/auth/logout", async (req, res) => {
   try {
-    res.clearCookie("token", { path: "/" });
+    // Must match the same options used when setting the cookie
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      path: "/",
+    });
     return res.json({ ok: true });
   } catch (err) {
     console.error("Logout error:", err);
@@ -1946,6 +1952,16 @@ app.post("/api/users/me/preferences", async (req, res) => {
     console.error("Preferences save error:", err);
     return res.status(401).json({ error: "Invalid token or save failed" });
   }
+});
+
+// Health check endpoint for NFR_03 (uptime monitoring)
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || "development"
+  });
 });
 
 // Start the server
