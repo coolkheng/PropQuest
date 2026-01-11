@@ -39,8 +39,10 @@ export default function HomePage() {
   // Restore search state from sessionStorage on mount
   useEffect(() => {
     const savedProperties = sessionStorage.getItem("searchProperties");
-    const savedIsAISearch = sessionStorage.getItem("isAISearch");
     const savedGeocodedCache = sessionStorage.getItem("geocodedCache");
+
+
+    const savedIsAISearch = sessionStorage.getItem("isAISearch");
 
     if (savedProperties && savedIsAISearch) {
       try {

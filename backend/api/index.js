@@ -1212,7 +1212,6 @@ app.post("/api/properties/search", async (req, res) => {
     const pipeline = [{ $match: matchStage }];
 
     // Stage 2: Convert numeric fields
-
     pipeline.push({
       $addFields: {
         price_num: {
@@ -1331,7 +1330,6 @@ app.post("/api/properties/search", async (req, res) => {
     });
 
     // Stage 3: Numeric filters
-
     const numericMatch = {};
     if (filters.price_min != null || filters.price_max != null) {
       numericMatch.price_num = {};

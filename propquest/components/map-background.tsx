@@ -112,7 +112,7 @@ export function MapBackground({
           const cached = geocodedCache[property._id];
 
           if (cached && cached.location) {
-            // Use cached coordinates - NO API CALL
+
             const location = cached.location;
 
             // Center map on first property
