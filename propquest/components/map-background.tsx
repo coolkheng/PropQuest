@@ -33,7 +33,7 @@ const geocodeUrl =
   "https://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer";
 
 const frontendURL = process.env.NEXT_PUBLIC_FRONTEND_ORIGIN || "http://localhost:3000";
-
+console.log("Frontend URL:", process.env.NEXT_PUBLIC_FRONTEND_ORIGIN );
 export function MapBackground({
   hoveredProperty,
   Property,
