@@ -151,25 +151,35 @@ app.get("/api/properties", async (req, res) => {
 
     // Rooms filter
     if (req.query.rooms) {
-      query.$expr = query.$expr || {};
       const roomsQuery = {
         $gte: [
-          { $toDouble: { $ifNull: ["$beds", "0"] } },
+          { 
+            $convert: { 
+              input: "$beds", 
+              to: "double", 
+              onError: 0, 
+              onNull: 0 
+            } 
+          },
           parseInt(req.query.rooms),
         ],
       };
-      if (query.$and) {
-        query.$and.push({ $expr: roomsQuery });
-      } else {
-        query.$expr = roomsQuery;
-      }
+      query.$and = query.$and || [];
+      query.$and.push({ $expr: roomsQuery });
     }
 
     // Bathrooms filter
     if (req.query.toilets) {
       const toiletsQuery = {
         $gte: [
-          { $toDouble: { $ifNull: ["$baths", "0"] } },
+          { 
+            $convert: { 
+              input: "$baths", 
+              to: "double", 
+              onError: 0, 
+              onNull: 0 
+            } 
+          },
           parseInt(req.query.toilets),
         ],
       };
