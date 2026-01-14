@@ -275,6 +275,64 @@ app.get("/api/properties", async (req, res) => {
   }
 });
 
+// --- SMART LISTING (Step 2): Candidate selection based on user preferences ---
+app.get("/api/properties/smart-listing", async (req, res) => {
+  try {
+    const db = await connectToDatabase();
+    
+    // Parse user preferences from query string
+    const preferences = req.query.preferences ? JSON.parse(req.query.preferences) : null;
+    
+    if (!preferences) {
+      // No preferences, fallback to regular listing
+      const queryParams = new URLSearchParams(req.query).toString();
+      return res.redirect(307, `/api/properties?${queryParams}`);
+    }
+    
+    console.log("📊 Smart listing with preferences:", preferences);
+    
+    // Step 2: Query MongoDB for 50 candidate properties
+    const candidateQuery = {
+      // Same city/region
+      address: new RegExp(preferences.dominant_location, "i"),
+      
+      // Price ±40% of average (0.6x to 1.4x)
+      price: {
+        $gte: Math.floor(preferences.avg_price * 0.6),
+        $lte: Math.ceil(preferences.avg_price * 1.4)
+      }
+    };
+    
+    console.log("🔍 Candidate query:", candidateQuery);
+    
+    const candidates = await db
+      .collection("properties5jancleaned")
+      .find(candidateQuery)
+      .limit(50)
+      .toArray();
+    
+    console.log(`✅ Found ${candidates.length} candidates for ${preferences.dominant_location}`);
+    
+    // Return candidates (Step 3 will add similarity scoring)
+    res.json({
+      properties: candidates,
+      pagination: {
+        currentPage: 1,
+        totalPages: 1,
+        totalCount: candidates.length,
+        pageSize: candidates.length,
+        hasMore: false,
+      },
+      smartListing: true,
+      preferences: preferences
+    });
+    
+  } catch (error) {
+    console.error("❌ /api/properties/smart-listing error:", error);
+    res.status(500).json({ error: "Failed to fetch smart listing" });
+  }
+});
+
 // --- PERSONALIZED PROPERTIES (Module 4): Get top 100 ranked properties based on user preferences ---
 app.get("/api/properties/personalized", async (req, res) => {
   const token = req.cookies?.token;
