@@ -10,9 +10,11 @@ dotenv.config();
 
 // DEVELOPMENT ONLY: Disable SSL verification if explicitly set
 // WARNING: Never use this in production!
-if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') {
-  console.warn('⚠️  WARNING: SSL certificate verification is disabled. This should only be used in development!');
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0") {
+  console.warn(
+    "⚠️  WARNING: SSL certificate verification is disabled. This should only be used in development!"
+  );
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
 
 const app = express();
@@ -44,8 +46,8 @@ app.use(cookieParser());
 // MongoDB connection setup with SSL options
 const client = new MongoClient(process.env.MONGODB_URI, {
   tls: true,
-  tlsAllowInvalidCertificates: process.env.NODE_ENV === 'development',
-  tlsAllowInvalidHostnames: process.env.NODE_ENV === 'development',
+  tlsAllowInvalidCertificates: process.env.NODE_ENV === "development",
+  tlsAllowInvalidHostnames: process.env.NODE_ENV === "development",
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
 });
@@ -279,54 +281,95 @@ app.get("/api/properties", async (req, res) => {
 app.get("/api/properties/smart-listing", async (req, res) => {
   try {
     const db = await connectToDatabase();
-    
+
     // Parse user preferences from query string
-    const preferences = req.query.preferences ? JSON.parse(req.query.preferences) : null;
-    
+    const preferences = req.query.preferences
+      ? JSON.parse(req.query.preferences)
+      : null;
+
     if (!preferences) {
       // No preferences, fallback to regular listing
       const queryParams = new URLSearchParams(req.query).toString();
       return res.redirect(307, `/api/properties?${queryParams}`);
     }
-    
+
     console.log("📊 Smart listing with preferences:", preferences);
-    
-    // Step 2: Query MongoDB for 50 candidate properties
-    const candidateQuery = {
-      // Same city/region
-      address: new RegExp(preferences.dominant_location, "i"),
-      
-      // Price ±40% of average (0.6x to 1.4x)
-      price: {
-        $gte: Math.floor(preferences.avg_price * 0.6),
-        $lte: Math.ceil(preferences.avg_price * 1.4)
-      }
-    };
-    
-    console.log("🔍 Candidate query:", candidateQuery);
-    
-    const candidates = await db
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 60;
+    const skip = (page - 1) * limit;
+
+    let recommendedProperties = [];
+    let candidateIds = [];
+
+    // Only fetch recommended candidates on page 1
+    if (page === 1) {
+      const candidateQuery = {
+        address: new RegExp(preferences.dominant_location, "i"),
+        price: {
+          $gte: Math.floor(preferences.avg_price * 0.6),
+          $lte: Math.ceil(preferences.avg_price * 1.4),
+        },
+      };
+
+      console.log("🔍 Candidate query:", candidateQuery);
+
+      const candidates = await db
+        .collection("properties5jancleaned")
+        .find(candidateQuery)
+        .limit(50)
+        .toArray();
+
+      candidateIds = candidates.map((c) => c._id);
+      recommendedProperties = candidates.map((prop) => ({
+        ...prop,
+        is_recommended: true,
+      }));
+
+      console.log(
+        `✅ Found ${candidates.length} recommended candidates for ${preferences.dominant_location}`
+      );
+    }
+
+    // Normal query - always exclude recommended IDs to prevent duplicates
+    const normalQuery =
+      candidateIds.length > 0 ? { _id: { $nin: candidateIds } } : {};
+
+    // Calculate skip and limit for normal properties
+    const normalSkip = page === 1 ? 0 : skip - recommendedProperties.length;
+    const normalLimit =
+      page === 1 ? limit - recommendedProperties.length : limit;
+
+    const normalProperties = await db
       .collection("properties5jancleaned")
-      .find(candidateQuery)
-      .limit(50)
+      .find(normalQuery)
+      .skip(Math.max(0, normalSkip))
+      .limit(normalLimit)
       .toArray();
-    
-    console.log(`✅ Found ${candidates.length} candidates for ${preferences.dominant_location}`);
-    
-    // Return candidates (Step 3 will add similarity scoring)
+
+    // Merge: recommended first (page 1 only), then normal
+    const mergedProperties = [...recommendedProperties, ...normalProperties];
+
+    const totalNormal = await db
+      .collection("properties5jancleaned")
+      .countDocuments(normalQuery);
+    const totalWithRecommended = totalNormal + recommendedProperties.length;
+
+    console.log(
+      `🔀 Page ${page}: ${recommendedProperties.length} recommended + ${normalProperties.length} normal = ${mergedProperties.length} total`
+    );
+
     res.json({
-      properties: candidates,
+      properties: mergedProperties,
       pagination: {
-        currentPage: 1,
-        totalPages: 1,
-        totalCount: candidates.length,
-        pageSize: candidates.length,
-        hasMore: false,
+        currentPage: page,
+        totalPages: Math.ceil(totalWithRecommended / limit),
+        totalCount: totalWithRecommended,
+        pageSize: limit,
+        hasMore: skip + mergedProperties.length < totalWithRecommended,
       },
-      smartListing: true,
-      preferences: preferences
+      recommendedCount: recommendedProperties.length,
     });
-    
   } catch (error) {
     console.error("❌ /api/properties/smart-listing error:", error);
     res.status(500).json({ error: "Failed to fetch smart listing" });
@@ -1113,12 +1156,10 @@ app.get("/api/properties/personalized", async (req, res) => {
     console.error("❌ Personalized properties error:", error);
     console.error("Error message:", error.message);
     console.error("Stack trace:", error.stack);
-    res
-      .status(500)
-      .json({
-        error: "Failed to fetch personalized properties",
-        details: error.message,
-      });
+    res.status(500).json({
+      error: "Failed to fetch personalized properties",
+      details: error.message,
+    });
   }
 });
 
@@ -2016,7 +2057,7 @@ app.get("/api/health", (req, res) => {
     status: "ok",
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: process.env.NODE_ENV || "development"
+    environment: process.env.NODE_ENV || "development",
   });
 });
 

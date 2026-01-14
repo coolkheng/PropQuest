@@ -15,6 +15,7 @@ interface ListPropertyCardProps {
     bestFor?: boolean
     location?: string
     amenities?: string[]
+    is_recommended?: boolean
   }
   isHovered: boolean
   onMouseEnter: () => void
@@ -37,6 +38,11 @@ export function ListPropertyCard({ property, isHovered, onMouseEnter, onMouseLea
         {property.bestFor && (
           <div className="absolute top-2 left-2 z-10">
             <Badge className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 text-white text-xs">Best for you</Badge>
+          </div>
+        )}
+        {property.is_recommended && (
+          <div className="absolute top-2 right-2 z-10">
+            <Badge className="bg-gradient-to-r from-purple-600 to-pink-500 text-white text-xs">For You</Badge>
           </div>
         )}
 

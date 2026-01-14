@@ -20,6 +20,7 @@ interface Property {
   date_listed: string;
   images: string[];
   facilities: string[];
+  is_recommended?: boolean;
 }
 
 interface PropertyGridProps {
@@ -41,6 +42,13 @@ export function PropertyGrid({
         >
           {/* Image Section */}
           <div className="relative overflow-hidden">
+            {property.is_recommended && (
+              <div className="absolute top-3 right-3 z-10">
+                <span className="bg-gradient-to-r from-purple-600 to-pink-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg">
+                  For You
+                </span>
+              </div>
+            )}
             <img
               src={property.images[0] || "/placeholder.svg"}
               alt={property.title}

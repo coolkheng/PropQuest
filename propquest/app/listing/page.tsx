@@ -113,6 +113,7 @@ interface Property {
   date_listed: string;
   images: string[];
   facilities: string[];
+  is_recommended?: boolean;
 }
 
 export default function ListingPage() {
