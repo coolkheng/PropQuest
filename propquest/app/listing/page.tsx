@@ -157,8 +157,19 @@ export default function ListingPage() {
           limit: itemsPerPage.toString(),
         });
 
-        // Add user preferences to query if available (Step 2: Candidate selection)
-        if (userPreferences) {
+        // Check if user has active filters or sorting
+        const hasActiveFilters =
+          (filters?.location) ||
+          (filters?.propertyType && filters.propertyType.length > 0) ||
+          (filters?.minPrice != null) ||
+          (filters?.maxPrice != null) ||
+          (filters?.rooms != null) ||
+          (filters?.toilets != null) ||
+          (filters?.minSize != null) ||
+          (sortOption != null);
+
+        // Add user preferences to query only if no active filters (Step 2: Candidate selection)
+        if (userPreferences && !hasActiveFilters) {
           params.append("preferences", JSON.stringify(userPreferences));
         }
 
@@ -193,8 +204,8 @@ export default function ListingPage() {
           params.append("sortDirection", sortOption.direction);
         }
 
-        // Choose endpoint based on whether we have preferences
-        const endpoint = userPreferences
+        // Choose endpoint based on whether we have preferences AND no active filters
+        const endpoint = (userPreferences && !hasActiveFilters)
           ? `${API_URL}/api/properties/smart-listing`
           : `${API_URL}/api/properties`;
 
