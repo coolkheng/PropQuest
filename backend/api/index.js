@@ -69,6 +69,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Routes
 app.get("/api/properties", async (req, res) => {
   try {
+    console.log("📍 /api/properties called with query:", req.query);
     const db = await connectToDatabase();
 
     // Get pagination parameters from query string
@@ -82,17 +83,21 @@ app.get("/api/properties", async (req, res) => {
     // Search query (keywords) with word-boundary regex for address to prevent false positives
     if (req.query.search) {
       const searchTerm = req.query.search.trim();
-      const generalRegex = new RegExp(searchTerm, "i");
-      // Ultra-strict word-boundary regex for address: matches "ss2" but not "ss21", "ss22", "ss25", etc.
-      // Pattern: (boundary) + exact term + (boundary OR end)
+      // Ultra-strict word-boundary regex: matches "ss2" but not "ss21", "ss22", "ss25", etc.
+      // Pattern: (boundary) + exact term + (not followed by digit or letter)
       const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const addressRegex = new RegExp(
-        `(^|\\s|,|/|-)${escapedTerm}(?=\\s|,|/|-|$)`,
-        "i"
-      );
+      const strictPattern = `(^|\\s|,|/|-)${escapedTerm}(?![0-9a-zA-Z])`;
+      const strictRegex = new RegExp(strictPattern, "i");
+      
+      // For very short terms (likely location codes), use strict matching everywhere
+      const useStrictForAll = searchTerm.length <= 4;
+      const generalRegex = useStrictForAll ? strictRegex : new RegExp(searchTerm, "i");
+      
+      console.log(`Search term: "${searchTerm}", Strict pattern: ${strictPattern}, Use strict for all: ${useStrictForAll}`);
+      
       query.$or = [
         { title: generalRegex },
-        { address: addressRegex },
+        { address: strictRegex },
         { house_type: generalRegex },
         { facilities: { $in: [generalRegex] } },
       ];
@@ -105,17 +110,19 @@ app.get("/api/properties", async (req, res) => {
         /[.*+?^${}()|[\]\\]/g,
         "\\$&"
       );
-      const locationRegex = new RegExp(
-        `(^|\\s|,|/|-)${escapedLocation}(?=\\s|,|/|-|$)`,
-        "i"
-      );
-      // Search in both address (strict word-boundary) and title (general match)
-      const generalLocationRegex = new RegExp(locationTerm, "i");
+      const strictLocationPattern = `(^|\\s|,|/|-)${escapedLocation}(?![0-9a-zA-Z])`;
+      const strictLocationRegex = new RegExp(strictLocationPattern, "i");
+      
+      // For short terms (likely location codes like ss2, pj, etc), use strict matching everywhere
+      const useStrictForAll = locationTerm.length <= 4;
+      const titleRegex = useStrictForAll ? strictLocationRegex : new RegExp(locationTerm, "i");
+      
+      console.log(`Location filter: "${locationTerm}", Pattern: ${strictLocationPattern}, Use strict for all: ${useStrictForAll}`);
 
       // Add to existing $and or create new one
       query.$and = query.$and || [];
       query.$and.push({
-        $or: [{ address: locationRegex }, { title: generalLocationRegex }],
+        $or: [{ address: strictLocationRegex }, { title: titleRegex }],
       });
     }
 
@@ -146,25 +153,35 @@ app.get("/api/properties", async (req, res) => {
 
     // Rooms filter
     if (req.query.rooms) {
-      query.$expr = query.$expr || {};
       const roomsQuery = {
         $gte: [
-          { $toDouble: { $ifNull: ["$beds", "0"] } },
+          { 
+            $convert: { 
+              input: "$beds", 
+              to: "double", 
+              onError: 0, 
+              onNull: 0 
+            } 
+          },
           parseInt(req.query.rooms),
         ],
       };
-      if (query.$and) {
-        query.$and.push({ $expr: roomsQuery });
-      } else {
-        query.$expr = roomsQuery;
-      }
+      query.$and = query.$and || [];
+      query.$and.push({ $expr: roomsQuery });
     }
 
     // Bathrooms filter
     if (req.query.toilets) {
       const toiletsQuery = {
         $gte: [
-          { $toDouble: { $ifNull: ["$baths", "0"] } },
+          { 
+            $convert: { 
+              input: "$baths", 
+              to: "double", 
+              onError: 0, 
+              onNull: 0 
+            } 
+          },
           parseInt(req.query.toilets),
         ],
       };
@@ -378,6 +395,7 @@ app.get("/api/properties/smart-listing", async (req, res) => {
 
 // --- PERSONALIZED PROPERTIES (Module 4): Get top 100 ranked properties based on user preferences ---
 app.get("/api/properties/personalized", async (req, res) => {
+  console.log("🎯 /api/properties/personalized called");
   const token = req.cookies?.token;
   if (!token) return res.status(401).json({ error: "Authentication required" });
 
@@ -585,57 +603,55 @@ app.get("/api/properties/personalized", async (req, res) => {
       },
       {
         $addFields: {
-          score: {
-            $add: [
-              // Location match score (0-40 points) - Exact match with word boundaries
-              {
-                $cond: {
-                  if:
-                    normalizedPrefs.preferred_locations &&
-                    normalizedPrefs.preferred_locations.length > 0,
-                  then: {
-                    $multiply: [
-                      {
-                        $cond: {
-                          if: {
-                            $gt: [
-                              {
-                                $size: {
-                                  $filter: {
-                                    input: normalizedPrefs.preferred_locations,
-                                    as: "loc",
-                                    cond: {
-                                      $regexMatch: {
-                                        input: { $toLower: "$address" },
-                                        regex: {
-                                          $concat: [
-                                            "(^|\\s|,)",
-                                            { $toLower: "$$loc" },
-                                            "(\\s|,|$)",
-                                          ],
-                                        },
-                                        options: "i",
-                                      },
+          // Store individual component scores for demo logging
+          locationScore: {
+            $cond: {
+              if:
+                normalizedPrefs.preferred_locations &&
+                normalizedPrefs.preferred_locations.length > 0,
+              then: {
+                $multiply: [
+                  {
+                    $cond: {
+                      if: {
+                        $gt: [
+                          {
+                            $size: {
+                              $filter: {
+                                input: normalizedPrefs.preferred_locations,
+                                as: "loc",
+                                cond: {
+                                  $regexMatch: {
+                                    input: { $toLower: "$address" },
+                                    regex: {
+                                      $concat: [
+                                        "(^|\\s|,)",
+                                        { $toLower: "$$loc" },
+                                        "(?!\\d|[a-zA-Z])",
+                                      ],
                                     },
+                                    options: "i",
                                   },
                                 },
                               },
-                              0,
-                            ],
+                            },
                           },
-                          then: 1,
-                          else: 0,
-                        },
+                          0,
+                        ],
                       },
-                      40,
-                    ],
+                      then: 1,
+                      else: 0,
+                    },
                   },
-                  else: 0,
-                },
+                  40,
+                ],
               },
-              // Price match score (0-30 points) - IMPROVED: Continuous scoring with smooth decay
-              {
-                $cond: {
+              else: 0,
+            },
+          },
+          priceScore: {
+            // Price match score (0-30 points) - IMPROVED: Continuous scoring with smooth decay
+            $cond: {
                   if:
                     normalizedPrefs.budget_range &&
                     (normalizedPrefs.budget_range.min != null ||
@@ -709,9 +725,8 @@ app.get("/api/properties/personalized", async (req, res) => {
                   },
                   else: 0,
                 },
-              },
-              // Property type match (0-15 points) - IMPROVED: Similarity matrix for related types
-              {
+          },
+          typeScore: {
                 $cond: {
                   if:
                     normalizedPrefs.preferred_types &&
@@ -933,9 +948,8 @@ app.get("/api/properties/personalized", async (req, res) => {
                   },
                   else: 0,
                 },
-              },
-              // Size match (0-10 points) - IMPROVED: Smooth decay based on percentage difference
-              {
+          },
+          sizeScore: {
                 $cond: {
                   if: normalizedPrefs.min_size_sqft,
                   then: {
@@ -981,9 +995,8 @@ app.get("/api/properties/personalized", async (req, res) => {
                   },
                   else: 0,
                 },
-              },
-              // Rooms match (0-3 points) - IMPROVED: Distance-based scoring
-              {
+          },
+          roomsScore: {
                 $cond: {
                   if: normalizedPrefs.rooms != null,
                   then: {
@@ -1006,9 +1019,8 @@ app.get("/api/properties/personalized", async (req, res) => {
                   },
                   else: 0,
                 },
-              },
-              // Bathrooms match (0-2 points) - IMPROVED: Distance-based scoring
-              {
+          },
+          bathsScore: {
                 $cond: {
                   if: normalizedPrefs.toilets != null,
                   then: {
@@ -1031,9 +1043,27 @@ app.get("/api/properties/personalized", async (req, res) => {
                   },
                   else: 0,
                 },
-              },
-              // Keywords match (0-5 points) - IMPROVED: Proportional scoring based on match ratio
-              {
+          },
+        },
+      },
+      {
+        $addFields: {
+          score: {
+            $add: [
+              "$locationScore",
+              "$priceScore",
+              "$typeScore",
+              "$sizeScore",
+              "$roomsScore",
+              "$bathsScore",
+            ],
+          },
+        },
+      },
+      {
+        $addFields: {
+          // Keywords match (0-5 points) - IMPROVED: Proportional scoring based on match ratio
+          keywordsScore: {
                 $cond: {
                   if:
                     normalizedPrefs.keywords &&
@@ -1097,8 +1127,6 @@ app.get("/api/properties/personalized", async (req, res) => {
                   },
                   else: 0,
                 },
-              },
-            ],
           },
         },
       },
@@ -1117,6 +1145,55 @@ app.get("/api/properties/personalized", async (req, res) => {
       .aggregate(pipeline)
       .toArray();
     console.log(`Found ${scoredProperties.length} properties with score > 0`);
+
+    // ===== DEMO LOGGING: Show Top 5 Ranked Properties with Component Scores =====
+    if (scoredProperties.length > 0) {
+      console.log("\n" + "=".repeat(80));
+      console.log("PERSONALIZED RANKING ALGORITHM - LIVE CALCULATION");
+      console.log("=".repeat(80));
+      console.log(`USER PREFERENCES:`);
+      console.log(`   Budget: RM ${(normalizedPrefs.budget_range?.min || 0).toLocaleString()} - RM ${(normalizedPrefs.budget_range?.max || 999999999).toLocaleString()}`);
+      console.log(`   Locations: ${normalizedPrefs.preferred_locations.join(", ") || "Any"}`);
+      console.log(`   Types: ${normalizedPrefs.preferred_types.join(", ") || "Any"}`);
+      console.log(`   Min Size: ${normalizedPrefs.min_size_sqft || "Any"} sqft`);
+      if (normalizedPrefs.rooms) console.log(`   Rooms: ${normalizedPrefs.rooms}`);
+      if (normalizedPrefs.toilets) console.log(`   Bathrooms: ${normalizedPrefs.toilets}`);
+      console.log("=".repeat(80));
+      console.log("SCORING SYSTEM: Location (40) + Price (30) + Type (15) + Size (10) + Rooms (3) + Baths (2) = 100");
+      console.log("=".repeat(80) + "\n");
+
+      scoredProperties.slice(0, 5).forEach((prop, index) => {
+        const rank = index + 1;
+        const price = prop.priceNumeric || 0;
+        const locationScore = prop.locationScore || 0;
+        const priceScore = prop.priceScore || 0;
+        const typeScore = prop.typeScore || 0;
+        const sizeScore = prop.sizeScore || 0;
+        const roomsScore = prop.roomsScore || 0;
+        const bathsScore = prop.bathsScore || 0;
+        
+        console.log(`RANK #${rank}`);
+        console.log("-".repeat(80));
+        console.log(`Property: ${prop.title}`);
+        console.log(`Location: ${prop.address?.substring(0, 65)}${prop.address?.length > 65 ? '...' : ''}`);
+        console.log(`Type: ${prop.house_type}  |  Price: RM ${price.toLocaleString()}`);
+        console.log(`Size: ${prop.sqft}  |  Beds: ${prop.beds}  |  Baths: ${prop.baths}`);
+        console.log("-".repeat(80));
+        console.log(`SCORE BREAKDOWN:`);
+        console.log(`   Location Match:    ${locationScore.toFixed(1).padStart(5)} / 40.0`);
+        console.log(`   Price Match:       ${priceScore.toFixed(1).padStart(5)} / 30.0`);
+        console.log(`   Type Match:        ${typeScore.toFixed(1).padStart(5)} / 15.0`);
+        console.log(`   Size Match:        ${sizeScore.toFixed(1).padStart(5)} / 10.0`);
+        console.log(`   Rooms Match:       ${roomsScore.toFixed(1).padStart(5)} / 3.0`);
+        console.log(`   Bathrooms Match:   ${bathsScore.toFixed(1).padStart(5)} / 2.0`);
+        console.log("-".repeat(80));
+        console.log(`TOTAL RELEVANCE SCORE: ${prop.score.toFixed(1)} / 100.0`);
+        console.log("=".repeat(80) + "\n");
+      });
+      
+      console.log("NOTE: Higher scores indicate better match to your preferences\n");
+    }
+    // ===== END DEMO LOGGING =====
 
     const totalCount = scoredProperties.length;
 
