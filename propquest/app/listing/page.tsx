@@ -70,7 +70,6 @@ function aggregatePreferences() {
       click_count: clicks.length,
     };
 
-    console.log("📈 User Preferences:", preferences);
     return preferences;
   } catch (error) {
     console.error("Error aggregating preferences:", error);
