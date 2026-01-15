@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { TopBar } from "@/components/top-bar";
 import { FloatingSearchBar } from "@/components/floating-search-bar";
 import { ListingControls } from "@/components/listing-controls";
@@ -47,7 +47,105 @@ export default function ListingPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalResults, setTotalResults] = useState(0);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useSession();
+
+  // Load filters from URL on mount
+  useEffect(() => {
+    const urlFilters: Filters = {};
+    let hasFilters = false;
+
+    const location = searchParams.get("location");
+    if (location) {
+      urlFilters.location = location;
+      setPendingSearch(location);
+      hasFilters = true;
+    }
+
+    const propertyType = searchParams.get("propertyType");
+    if (propertyType) {
+      urlFilters.propertyType = propertyType.split(",");
+      hasFilters = true;
+    }
+
+    const minPrice = searchParams.get("minPrice");
+    if (minPrice) {
+      urlFilters.minPrice = parseFloat(minPrice);
+      hasFilters = true;
+    }
+
+    const maxPrice = searchParams.get("maxPrice");
+    if (maxPrice) {
+      urlFilters.maxPrice = parseFloat(maxPrice);
+      hasFilters = true;
+    }
+
+    const rooms = searchParams.get("rooms");
+    if (rooms) {
+      urlFilters.rooms = parseInt(rooms);
+      hasFilters = true;
+    }
+
+    const toilets = searchParams.get("toilets");
+    if (toilets) {
+      urlFilters.toilets = parseInt(toilets);
+      hasFilters = true;
+    }
+
+    const minSize = searchParams.get("minSize");
+    if (minSize) {
+      urlFilters.minSize = parseFloat(minSize);
+      hasFilters = true;
+    }
+
+    const sortBy = searchParams.get("sortBy");
+    const sortDirection = searchParams.get("sortDirection");
+    if (sortBy && sortDirection) {
+      setSortOption({
+        label: sortBy.charAt(0).toUpperCase() + sortBy.slice(1),
+        value: sortBy,
+        direction: sortDirection as "asc" | "desc",
+      });
+    }
+
+    const page = searchParams.get("page");
+    if (page) {
+      setCurrentPage(parseInt(page));
+    }
+
+    if (hasFilters) {
+      setFilters(urlFilters);
+    }
+  }, [searchParams]);
+
+  // Update URL when filters change
+  const updateURL = (newFilters: Filters | null, newSort: SortOption | null, page: number) => {
+    const params = new URLSearchParams();
+
+    if (newFilters) {
+      if (newFilters.location) params.set("location", newFilters.location);
+      if (newFilters.propertyType && newFilters.propertyType.length > 0) {
+        params.set("propertyType", newFilters.propertyType.join(","));
+      }
+      if (newFilters.minPrice != null) params.set("minPrice", newFilters.minPrice.toString());
+      if (newFilters.maxPrice != null) params.set("maxPrice", newFilters.maxPrice.toString());
+      if (newFilters.rooms != null) params.set("rooms", newFilters.rooms.toString());
+      if (newFilters.toilets != null) params.set("toilets", newFilters.toilets.toString());
+      if (newFilters.minSize != null) params.set("minSize", newFilters.minSize.toString());
+    }
+
+    if (newSort) {
+      params.set("sortBy", newSort.value);
+      params.set("sortDirection", newSort.direction);
+    }
+
+    if (page > 1) {
+      params.set("page", page.toString());
+    }
+
+    const newURL = params.toString() ? `/listing?${params.toString()}` : "/listing";
+    router.push(newURL, { scroll: false });
+  };
 
   // Sync pendingSearch with filters.location when filters change
   useEffect(() => {
@@ -139,12 +237,16 @@ export default function ListingPage() {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+    updateURL(filters, sortOption, page);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Reset to page 1 when filters or sort changes
   useEffect(() => {
-    setCurrentPage(1);
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+    updateURL(filters, sortOption, 1);
   }, [filters, sortOption]);
 
   // Count active filters
@@ -223,10 +325,12 @@ export default function ListingPage() {
               onApply={(f) => {
                 setFilters(f);
                 setShowFilters(false);
+                updateURL(f, sortOption, 1);
               }}
               onClear={() => {
                 setPendingSearch("");
                 setFilters(null);
+                updateURL(null, sortOption, 1);
               }}
               initial={filters ?? undefined}
               locationValue={pendingSearch}
@@ -239,7 +343,10 @@ export default function ListingPage() {
         <ListingControls
           onFilterClick={handleFilterClick}
           filterCount={activeFilterCount}
-          onSortChange={setSortOption}
+          onSortChange={(sort) => {
+            setSortOption(sort);
+            updateURL(filters, sort, 1);
+          }}
           isLoggedIn={!!user}
         />
         <ListingHeader
