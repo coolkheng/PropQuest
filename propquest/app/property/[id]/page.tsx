@@ -59,6 +59,18 @@ function trackPropertyClick(property: {
     const stored = sessionStorage.getItem("userPropertyClicks");
     const clicks = stored ? JSON.parse(stored) : [];
 
+    // Check if this property was already tracked recently (within last 5 seconds)
+    const recentlyTracked = clicks.find(
+      (click: any) => 
+        click._id === property._id && 
+        Date.now() - click.timestamp < 5000
+    );
+
+    if (recentlyTracked) {
+      console.log(`⏭️ Skipped duplicate tracking for ${property._id}`);
+      return;
+    }
+
     // Add new click at the beginning (FIFO)
     clicks.unshift({ ...property, timestamp: Date.now() });
 
