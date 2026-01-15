@@ -1,6 +1,7 @@
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { formatPrice } from "@/lib/utils"
 
@@ -21,6 +22,7 @@ interface MapPropertyCardProps {
   date_listed: string;
   images: string[];
   facilities: string[];
+  is_recommended?: boolean;
 }
   isHovered: boolean
   onMouseEnter: () => void
@@ -40,11 +42,11 @@ export function MapPropertyCard({ property, isHovered, onMouseEnter, onMouseLeav
           boxShadow: isHovered ? "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" : "",
         }}
       >
-        {/* {property.bestFor && (
-          <div className="absolute top-2 left-2 z-10">
-            <Badge className="bg-blue-gradient text-white text-xs">Best for you</Badge>
+        {property.is_recommended && (
+          <div className="absolute top-2 right-2 z-10">
+            <Badge className="bg-gradient-to-r from-purple-600 to-pink-500 text-white text-xs">For You</Badge>
           </div>
-        )} */}
+        )}
 
         {/* Image Section */}
         <div className="relative">

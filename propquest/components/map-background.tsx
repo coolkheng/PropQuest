@@ -112,7 +112,7 @@ export function MapBackground({
           const cached = geocodedCache[property._id];
 
           if (cached && cached.location) {
-            // Use cached coordinates - NO API CALL
+
             const location = cached.location;
 
             // Center map on first property
@@ -322,7 +322,7 @@ export function MapBackground({
                         ${
                           attrs._id
                             ? `<div style="margin-top:10px;">
-                                <a href="${`${frontendURL}/property/${attrs._id}`}" 
+                                <a href="${`https://prop-quest.vercel.app/property/${attrs._id}`}" 
                                    style="display:inline-block;padding:8px 16px;background:linear-gradient(to right, #2563eb, #3b82f6, #60a5fa);color:white;text-decoration:none;border-radius:6px;font-weight:600;text-align:center;transition:opacity 0.2s;"
                                    onmouseover="this.style.opacity='0.9'" 
                                    onmouseout="this.style.opacity='1'">

@@ -16,6 +16,86 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useSession } from "@/lib/useSession";
 import axios from "axios";
 
+// Aggregate user preferences from sessionStorage
+function aggregatePreferences() {
+  try {
+    const stored = sessionStorage.getItem("userPropertyClicks");
+    if (!stored) return null;
+
+    const clicks = JSON.parse(stored);
+    if (clicks.length < 3) {
+      console.log(`⏳ Need ${3 - clicks.length} more clicks for preferences`);
+      return null;
+    }
+
+    const prices = clicks.map((c: any) => c.price);
+    const avg_price = Math.round(
+      prices.reduce((a: number, b: number) => a + b, 0) / prices.length
+    );
+
+    const locationCounts = new Map<string, number>();
+    clicks.forEach((click: any) => {
+      locationCounts.set(
+        click.location,
+        (locationCounts.get(click.location) || 0) + 1
+      );
+    });
+    const dominant_location = Array.from(locationCounts.entries()).sort(
+      (a, b) => b[1] - a[1]
+    )[0][0];
+
+    const typeCounts = new Map<string, number>();
+    clicks.forEach((click: any) => {
+      typeCounts.set(
+        click.house_type,
+        (typeCounts.get(click.house_type) || 0) + 1
+      );
+    });
+    const dominant_type = Array.from(typeCounts.entries()).sort(
+      (a, b) => b[1] - a[1]
+    )[0][0];
+
+    const furnishingCounts = new Map<string, number>();
+    clicks.forEach((click: any) => {
+      furnishingCounts.set(
+        click.furnishing,
+        (furnishingCounts.get(click.furnishing) || 0) + 1
+      );
+    });
+    const furnishing_preference = Array.from(furnishingCounts.entries()).sort(
+      (a, b) => b[1] - a[1]
+    )[0][0];
+
+    const beds = clicks
+      .map((c: any) => parseFloat(c.beds) || 0)
+      .filter((b: number) => b > 0);
+    const avg_beds =
+      beds.length > 0
+        ? Math.round(
+            beds.reduce((a: number, b: number) => a + b, 0) / beds.length
+          )
+        : 0;
+
+    const preferences = {
+      avg_price,
+      price_range: {
+        min: Math.floor(Math.min(...prices) * 0.8),
+        max: Math.ceil(Math.max(...prices) * 1.2),
+      },
+      dominant_location,
+      dominant_type,
+      furnishing_preference,
+      avg_beds,
+      click_count: clicks.length,
+    };
+
+    return preferences;
+  } catch (error) {
+    console.error("Error aggregating preferences:", error);
+    return null;
+  }
+}
+
 // ✅ Locally define the Property interface
 interface Property {
   _id: string;
@@ -33,6 +113,7 @@ interface Property {
   date_listed: string;
   images: string[];
   facilities: string[];
+  is_recommended?: boolean;
 }
 
 export default function ListingPage() {
@@ -157,12 +238,38 @@ export default function ListingPage() {
   useEffect(() => {
     const fetchProperties = async () => {
       setIsLoading(true);
+
+      // Step 1: Get user session preferences from sessionStorage (only on page 1)
+      let userPreferences = null;
+      if (currentPage === 1) {
+        userPreferences = aggregatePreferences();
+        if (userPreferences) {
+          console.log("📊 User preferences detected:", userPreferences);
+        }
+      }
+
       try {
         // Build query parameters for server-side filtering and sorting
         const params = new URLSearchParams({
           page: currentPage.toString(),
           limit: itemsPerPage.toString(),
         });
+
+        // Check if user has active filters or sorting
+        const hasActiveFilters =
+          (filters?.location) ||
+          (filters?.propertyType && filters.propertyType.length > 0) ||
+          (filters?.minPrice != null) ||
+          (filters?.maxPrice != null) ||
+          (filters?.rooms != null) ||
+          (filters?.toilets != null) ||
+          (filters?.minSize != null) ||
+          (sortOption != null);
+
+        // Add user preferences to query only if no active filters (Step 2: Candidate selection)
+        if (userPreferences && !hasActiveFilters) {
+          params.append("preferences", JSON.stringify(userPreferences));
+        }
 
         // Add filters
         if (filters) {
@@ -195,9 +302,12 @@ export default function ListingPage() {
           params.append("sortDirection", sortOption.direction);
         }
 
-        const res = await axios.get(
-          `${API_URL}/api/properties?${params.toString()}`
-        );
+        // Choose endpoint based on whether we have preferences AND no active filters
+        const endpoint = (userPreferences && !hasActiveFilters)
+          ? `${API_URL}/api/properties/smart-listing`
+          : `${API_URL}/api/properties`;
+
+        const res = await axios.get(`${endpoint}?${params.toString()}`);
 
         setProperties(res.data.properties || []);
         setTotalPages(res.data.pagination?.totalPages || 0);
