@@ -67,7 +67,6 @@ function trackPropertyClick(property: {
     );
 
     if (recentlyTracked) {
-      console.log(`⏭️ Skipped duplicate tracking for ${property._id}`);
       return;
     }
 
@@ -78,9 +77,7 @@ function trackPropertyClick(property: {
     const trimmedClicks = clicks.slice(0, 10);
 
     sessionStorage.setItem("userPropertyClicks", JSON.stringify(trimmedClicks));
-    console.log(
-      `📊 Tracked: ${property.house_type} in ${property.location} (Total: ${trimmedClicks.length}/10)`
-    );
+  
   } catch (error) {
     console.error("Failed to track click:", error);
   }
