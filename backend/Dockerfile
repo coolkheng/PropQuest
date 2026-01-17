@@ -1,3 +1,5 @@
+#repo link : https://github.com/coolkheng/PropQuest
+
 # 1. Base image
 FROM node:18-alpine
 
@@ -13,8 +15,8 @@ RUN npm install
 # 5. Copy the rest of the application
 COPY . .
 
-# 6. Expose backend port
-EXPOSE 5000
+# 6. Expose backend port (5001 as per index.js)
+EXPOSE 5001
 
 # 7. Run the application
 CMD ["npm", "start"]
