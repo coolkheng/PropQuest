@@ -75,7 +75,7 @@ export function PropertyMainContent({ propertyData }: PropertyMainContentProps) 
         furnishing={propertyData.furnishing}
       />
 
-      <WhatsNearby amenities={amenities} />
+      <WhatsNearby address={propertyData.address} amenities={amenities} />
 
     </div>
   )
