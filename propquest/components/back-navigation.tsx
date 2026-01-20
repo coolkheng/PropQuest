@@ -12,7 +12,14 @@ export function BackNavigation({ referrer }: BackNavigationProps) {
   const router = useRouter()
 
   const handleBackClick = () => {
-    router.push(referrer)
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    // Fallback to referrer if provided, otherwise go to /listing
+    const fallback = referrer && referrer !== '/' ? referrer : '/listing';
+    router.push(fallback);
   }
 
   return (

@@ -87,7 +87,12 @@ export default function ForYouPage() {
   }, [currentPage, user, itemsPerPage]);
 
   const handlePropertyClick = (propertyId: string) => {
-    sessionStorage.setItem("propertyDetailReferrer", "/foryou");
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(
+        "propertyDetailReferrer",
+        window.location.pathname + window.location.search,
+      );
+    }
     router.push(`/property/${propertyId}`);
   };
 

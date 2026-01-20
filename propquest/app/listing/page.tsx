@@ -30,40 +30,40 @@ function aggregatePreferences() {
 
     const prices = clicks.map((c: any) => c.price);
     const avg_price = Math.round(
-      prices.reduce((a: number, b: number) => a + b, 0) / prices.length
+      prices.reduce((a: number, b: number) => a + b, 0) / prices.length,
     );
 
     const locationCounts = new Map<string, number>();
     clicks.forEach((click: any) => {
       locationCounts.set(
         click.location,
-        (locationCounts.get(click.location) || 0) + 1
+        (locationCounts.get(click.location) || 0) + 1,
       );
     });
     const dominant_location = Array.from(locationCounts.entries()).sort(
-      (a, b) => b[1] - a[1]
+      (a, b) => b[1] - a[1],
     )[0][0];
 
     const typeCounts = new Map<string, number>();
     clicks.forEach((click: any) => {
       typeCounts.set(
         click.house_type,
-        (typeCounts.get(click.house_type) || 0) + 1
+        (typeCounts.get(click.house_type) || 0) + 1,
       );
     });
     const dominant_type = Array.from(typeCounts.entries()).sort(
-      (a, b) => b[1] - a[1]
+      (a, b) => b[1] - a[1],
     )[0][0];
 
     const furnishingCounts = new Map<string, number>();
     clicks.forEach((click: any) => {
       furnishingCounts.set(
         click.furnishing,
-        (furnishingCounts.get(click.furnishing) || 0) + 1
+        (furnishingCounts.get(click.furnishing) || 0) + 1,
       );
     });
     const furnishing_preference = Array.from(furnishingCounts.entries()).sort(
-      (a, b) => b[1] - a[1]
+      (a, b) => b[1] - a[1],
     )[0][0];
 
     const beds = clicks
@@ -72,7 +72,7 @@ function aggregatePreferences() {
     const avg_beds =
       beds.length > 0
         ? Math.round(
-            beds.reduce((a: number, b: number) => a + b, 0) / beds.length
+            beds.reduce((a: number, b: number) => a + b, 0) / beds.length,
           )
         : 0;
 
@@ -117,94 +117,61 @@ interface Property {
 }
 
 export default function ListingPage() {
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [pendingSearch, setPendingSearch] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState<Filters | null>(null);
-  const [sortOption, setSortOption] = useState<SortOption | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(60);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalResults, setTotalResults] = useState(0);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useSession();
+  
+  // Derive state from URL - URL is the single source of truth
+  const currentPage = parseInt(searchParams.get("page") || "1");
+  const sortBy = searchParams.get("sortBy") || "date";
+  const sortDirection = (searchParams.get("sortDirection") || "desc") as "asc" | "desc";
+  
+  const sortOption: SortOption = {
+    label: sortBy.charAt(0).toUpperCase() + sortBy.slice(1),
+    value: sortBy,
+    direction: sortDirection,
+  };
+  
+  // Extract filters from URL
+  const urlFilters: Filters = {};
+  const location = searchParams.get("location");
+  if (location) urlFilters.location = location;
+  
+  const propertyType = searchParams.get("propertyType");
+  if (propertyType) urlFilters.propertyType = propertyType.split(",");
+  
+  const minPrice = searchParams.get("minPrice");
+  if (minPrice) urlFilters.minPrice = parseFloat(minPrice);
+  
+  const maxPrice = searchParams.get("maxPrice");
+  if (maxPrice) urlFilters.maxPrice = parseFloat(maxPrice);
+  
+  const rooms = searchParams.get("rooms");
+  if (rooms) urlFilters.rooms = parseInt(rooms);
+  
+  const toilets = searchParams.get("toilets");
+  if (toilets) urlFilters.toilets = parseInt(toilets);
+  
+  const minSize = searchParams.get("minSize");
+  if (minSize) urlFilters.minSize = parseFloat(minSize);
+  
+  const filters = Object.keys(urlFilters).length > 0 ? urlFilters : null;
+  
+  // UI state only (not in URL)
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [pendingSearch, setPendingSearch] = useState(location || "");
+  const [showFilters, setShowFilters] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [itemsPerPage] = useState(60);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalResults, setTotalResults] = useState(0);
 
-  // Load filters from URL on mount
-  useEffect(() => {
-    const urlFilters: Filters = {};
-    let hasFilters = false;
-
-    const location = searchParams.get("location");
-    if (location) {
-      urlFilters.location = location;
-      setPendingSearch(location);
-      hasFilters = true;
-    }
-
-    const propertyType = searchParams.get("propertyType");
-    if (propertyType) {
-      urlFilters.propertyType = propertyType.split(",");
-      hasFilters = true;
-    }
-
-    const minPrice = searchParams.get("minPrice");
-    if (minPrice) {
-      urlFilters.minPrice = parseFloat(minPrice);
-      hasFilters = true;
-    }
-
-    const maxPrice = searchParams.get("maxPrice");
-    if (maxPrice) {
-      urlFilters.maxPrice = parseFloat(maxPrice);
-      hasFilters = true;
-    }
-
-    const rooms = searchParams.get("rooms");
-    if (rooms) {
-      urlFilters.rooms = parseInt(rooms);
-      hasFilters = true;
-    }
-
-    const toilets = searchParams.get("toilets");
-    if (toilets) {
-      urlFilters.toilets = parseInt(toilets);
-      hasFilters = true;
-    }
-
-    const minSize = searchParams.get("minSize");
-    if (minSize) {
-      urlFilters.minSize = parseFloat(minSize);
-      hasFilters = true;
-    }
-
-    const sortBy = searchParams.get("sortBy");
-    const sortDirection = searchParams.get("sortDirection");
-    if (sortBy && sortDirection) {
-      setSortOption({
-        label: sortBy.charAt(0).toUpperCase() + sortBy.slice(1),
-        value: sortBy,
-        direction: sortDirection as "asc" | "desc",
-      });
-    } else {
-      // Redirect to date-sorted view if no sort parameters
-      router.replace("/listing?sortBy=date&sortDirection=desc");
-      return;
-    }
-
-    const page = searchParams.get("page");
-    if (page) {
-      setCurrentPage(parseInt(page));
-    }
-
-    if (hasFilters) {
-      setFilters(urlFilters);
-    }
-  }, [searchParams, router]);
-
-  // Update URL when filters change
-  const updateURL = (newFilters: Filters | null, newSort: SortOption | null, page: number) => {
+  // Update URL helper - only updates URL, doesn't manage state
+  const updateURL = (
+    newFilters: Filters | null,
+    newSort: SortOption,
+    page: number,
+  ) => {
     const params = new URLSearchParams();
 
     if (newFilters) {
@@ -212,38 +179,44 @@ export default function ListingPage() {
       if (newFilters.propertyType && newFilters.propertyType.length > 0) {
         params.set("propertyType", newFilters.propertyType.join(","));
       }
-      if (newFilters.minPrice != null) params.set("minPrice", newFilters.minPrice.toString());
-      if (newFilters.maxPrice != null) params.set("maxPrice", newFilters.maxPrice.toString());
-      if (newFilters.rooms != null) params.set("rooms", newFilters.rooms.toString());
-      if (newFilters.toilets != null) params.set("toilets", newFilters.toilets.toString());
-      if (newFilters.minSize != null) params.set("minSize", newFilters.minSize.toString());
+      if (newFilters.minPrice != null)
+        params.set("minPrice", newFilters.minPrice.toString());
+      if (newFilters.maxPrice != null)
+        params.set("maxPrice", newFilters.maxPrice.toString());
+      if (newFilters.rooms != null)
+        params.set("rooms", newFilters.rooms.toString());
+      if (newFilters.toilets != null)
+        params.set("toilets", newFilters.toilets.toString());
+      if (newFilters.minSize != null)
+        params.set("minSize", newFilters.minSize.toString());
     }
 
-    if (newSort) {
-      params.set("sortBy", newSort.value);
-      params.set("sortDirection", newSort.direction);
-    }
+    params.set("sortBy", newSort.value);
+    params.set("sortDirection", newSort.direction);
 
     if (page > 1) {
       params.set("page", page.toString());
     }
 
-    const newURL = params.toString() ? `/listing?${params.toString()}` : "/listing";
-    router.push(newURL, { scroll: false });
+    router.push(`/listing?${params.toString()}`, { scroll: false });
   };
 
-  // Sync pendingSearch with filters.location when filters change
+  // Initialize with default sort on first load if no sort params
   useEffect(() => {
-    if (filters?.location) {
-      setPendingSearch(filters.location);
+    if (!searchParams.get("sortBy")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("sortBy", "date");
+      params.set("sortDirection", "desc");
+      router.replace(`/listing?${params.toString()}`, { scroll: false });
     }
-  }, [filters?.location]);
+  }, []);
 
+  // Fetch properties whenever URL changes
   useEffect(() => {
     const fetchProperties = async () => {
       setIsLoading(true);
 
-      // Step 1: Get user session preferences from sessionStorage (only on page 1)
+      // Get user preferences from sessionStorage (only on page 1)
       let userPreferences = null;
       if (currentPage === 1) {
         userPreferences = aggregatePreferences();
@@ -253,63 +226,48 @@ export default function ListingPage() {
       }
 
       try {
-        // Build query parameters for server-side filtering and sorting
         const params = new URLSearchParams({
           page: currentPage.toString(),
           limit: itemsPerPage.toString(),
         });
 
-        // Check if user has active filters or sorting
+        // Check if user has active filters or sorting (other than default date desc)
         const hasActiveFilters =
-          (filters?.location) ||
-          (filters?.propertyType && filters.propertyType.length > 0) ||
-          (filters?.minPrice != null) ||
-          (filters?.maxPrice != null) ||
-          (filters?.rooms != null) ||
-          (filters?.toilets != null) ||
-          (filters?.minSize != null) ||
-          (sortOption != null);
+          filters != null ||
+          !(sortOption.value === "date" && sortOption.direction === "desc");
 
-        // Add user preferences to query only if no active filters (Step 2: Candidate selection)
+        // Add user preferences only if no active filters and we have preferences
         if (userPreferences && !hasActiveFilters) {
           params.append("preferences", JSON.stringify(userPreferences));
         }
 
         // Add filters
         if (filters) {
-          if (filters.location) {
-            params.append("location", filters.location);
-          }
+          if (filters.location) params.append("location", filters.location);
           if (filters.propertyType && filters.propertyType.length > 0) {
             params.append("propertyType", filters.propertyType.join(","));
           }
-          if (filters.minPrice != null) {
+          if (filters.minPrice != null)
             params.append("minPrice", filters.minPrice.toString());
-          }
-          if (filters.maxPrice != null) {
+          if (filters.maxPrice != null)
             params.append("maxPrice", filters.maxPrice.toString());
-          }
-          if (filters.rooms != null) {
+          if (filters.rooms != null)
             params.append("rooms", filters.rooms.toString());
-          }
-          if (filters.toilets != null) {
+          if (filters.toilets != null)
             params.append("toilets", filters.toilets.toString());
-          }
-          if (filters.minSize != null) {
+          if (filters.minSize != null)
             params.append("minSize", filters.minSize.toString());
-          }
         }
 
         // Add sorting
-        if (sortOption) {
-          params.append("sortBy", sortOption.value);
-          params.append("sortDirection", sortOption.direction);
-        }
+        params.append("sortBy", sortOption.value);
+        params.append("sortDirection", sortOption.direction);
 
-        // Choose endpoint based on whether we have preferences AND no active filters
-        const endpoint = (userPreferences && !hasActiveFilters)
-          ? `${API_URL}/api/properties/smart-listing`
-          : `${API_URL}/api/properties`;
+        // Use smart listing only when we have preferences and no active filters
+        const endpoint =
+          userPreferences && !hasActiveFilters
+            ? `${API_URL}/api/properties/smart-listing`
+            : `${API_URL}/api/properties`;
 
         const res = await axios.get(`${endpoint}?${params.toString()}`);
 
@@ -327,20 +285,23 @@ export default function ListingPage() {
     };
 
     fetchProperties();
-  }, [currentPage, filters, sortOption, itemsPerPage]);
+  }, [searchParams.toString(), currentPage, itemsPerPage]);
 
   const handlePropertyClick = (propertyId: string) => {
-    sessionStorage.setItem("propertyDetailReferrer", "/listing");
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(
+        "propertyDetailReferrer",
+        window.location.pathname + window.location.search,
+      );
+    }
     router.push(`/property/${propertyId}`);
   };
 
   const handleSearch = () => {
-    // When search is triggered, open filters with location pre-filled
+    // When search is triggered, update URL with location filter
     if (pendingSearch.trim()) {
-      setFilters((prev) => ({
-        ...prev,
-        location: pendingSearch.trim(),
-      }));
+      const newFilters = { ...filters, location: pendingSearch.trim() };
+      updateURL(newFilters, sortOption, 1);
     }
     setShowFilters(true);
   };
@@ -350,18 +311,23 @@ export default function ListingPage() {
   };
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page);
     updateURL(filters, sortOption, page);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Reset to page 1 when filters or sort changes
-  useEffect(() => {
-    if (currentPage !== 1) {
-      setCurrentPage(1);
-    }
-    updateURL(filters, sortOption, 1);
-  }, [filters, sortOption]);
+  const handleSortChange = (sort: SortOption) => {
+    updateURL(filters, sort, 1);
+  };
+
+  const handleApplyFilters = (newFilters: Filters) => {
+    updateURL(newFilters, sortOption, 1);
+    setShowFilters(false);
+  };
+
+  const handleClearFilters = () => {
+    setPendingSearch("");
+    updateURL(null, sortOption, 1);
+  };
 
   // Count active filters
   const activeFilterCount = filters
@@ -436,16 +402,8 @@ export default function ListingPage() {
             <FiltersModal
               open={showFilters}
               onClose={() => setShowFilters(false)}
-              onApply={(f) => {
-                setFilters(f);
-                setShowFilters(false);
-                updateURL(f, sortOption, 1);
-              }}
-              onClear={() => {
-                setPendingSearch("");
-                setFilters(null);
-                updateURL(null, sortOption, 1);
-              }}
+              onApply={handleApplyFilters}
+              onClear={handleClearFilters}
               initial={filters ?? undefined}
               locationValue={pendingSearch}
             />
@@ -457,10 +415,7 @@ export default function ListingPage() {
         <ListingControls
           onFilterClick={handleFilterClick}
           filterCount={activeFilterCount}
-          onSortChange={(sort) => {
-            setSortOption(sort);
-            updateURL(filters, sort, 1);
-          }}
+          onSortChange={handleSortChange}
           isLoggedIn={!!user}
         />
         <ListingHeader

@@ -102,7 +102,7 @@ export function PropertyGrid({
                     {Number(
                       typeof property.sqft === "string"
                         ? property.sqft.replace(/[^\d.]/g, "")
-                        : property.sqft || 0
+                        : property.sqft || 0,
                     ).toLocaleString()}
                   </span>
                   <span className="text-xs text-gray-500 ml-2">sqft</span>

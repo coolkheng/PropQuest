@@ -195,7 +195,12 @@ export default function HomePage() {
       });
     }
     
-    sessionStorage.setItem("propertyDetailReferrer", "/");
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(
+        "propertyDetailReferrer",
+        window.location.pathname + window.location.search,
+      );
+    }
   };
 
   const handleFilterClick = () => {
