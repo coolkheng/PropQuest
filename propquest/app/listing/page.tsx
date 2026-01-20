@@ -187,6 +187,10 @@ export default function ListingPage() {
         value: sortBy,
         direction: sortDirection as "asc" | "desc",
       });
+    } else {
+      // Redirect to date-sorted view if no sort parameters
+      router.replace("/listing?sortBy=date&sortDirection=desc");
+      return;
     }
 
     const page = searchParams.get("page");
@@ -197,7 +201,7 @@ export default function ListingPage() {
     if (hasFilters) {
       setFilters(urlFilters);
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   // Update URL when filters change
   const updateURL = (newFilters: Filters | null, newSort: SortOption | null, page: number) => {
