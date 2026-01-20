@@ -947,26 +947,7 @@ app.get("/api/properties/personalized", async (req, res) => {
               else: 0,
             },
           },
-        },
-      },
-      {
-        $addFields: {
-          score: {
-            $add: [
-              "$locationScore",
-              "$priceScore",
-              "$typeScore",
-              "$sizeScore",
-              "$roomsScore",
-              "$bathsScore",
-            ],
-          },
-        },
-      },
-      {
-        $addFields: {
-          // Keywords match (0-5 points) - IMPROVED: Proportional scoring based on match ratio
-          keywordsScore: {
+          facilitiesScore: {
             $cond: {
               if:
                 normalizedPrefs.keywords && normalizedPrefs.keywords.length > 0,
@@ -1032,6 +1013,22 @@ app.get("/api/properties/personalized", async (req, res) => {
           },
         },
       },
+      {
+        $addFields: {
+          score: {
+            $add: [
+              "$locationScore",
+              "$priceScore",
+              "$typeScore",
+              "$sizeScore",
+              "$roomsScore",
+              "$bathsScore",
+              "$facilitiesScore",
+            ],
+          },
+        },
+      },
+
       // Only show properties with score > 0
       { $match: { score: { $gt: 0 } } },
       // Sort by score descending
@@ -1072,7 +1069,7 @@ app.get("/api/properties/personalized", async (req, res) => {
         console.log(`   Bathrooms: ${normalizedPrefs.toilets}`);
       console.log("=".repeat(80));
       console.log(
-        "SCORING SYSTEM: Location (40) + Price (30) + Type (15) + Size (10) + Rooms (3) + Baths (2) = 100",
+        "SCORING SYSTEM: Location (40) + Price (30) + Type (15) + Size (10) + Rooms (3) + Baths (2) + Facilities (5) = 105",
       );
       console.log("=".repeat(80) + "\n");
 
@@ -1085,6 +1082,7 @@ app.get("/api/properties/personalized", async (req, res) => {
         const sizeScore = prop.sizeScore || 0;
         const roomsScore = prop.roomsScore || 0;
         const bathsScore = prop.bathsScore || 0;
+        const facilitiesScore = prop.facilitiesScore || 0;
 
         console.log(`RANK #${rank}`);
         console.log("-".repeat(80));
@@ -1118,8 +1116,11 @@ app.get("/api/properties/personalized", async (req, res) => {
         console.log(
           `   Bathrooms Match:   ${bathsScore.toFixed(1).padStart(5)} / 2.0`,
         );
+        console.log(
+          `   Facilities Match:  ${facilitiesScore.toFixed(1).padStart(5)} / 5.0`,
+        );
         console.log("-".repeat(80));
-        console.log(`TOTAL RELEVANCE SCORE: ${prop.score.toFixed(1)} / 100.0`);
+        console.log(`TOTAL RELEVANCE SCORE: ${prop.score.toFixed(1)} / 105.0`);
         console.log("=".repeat(80) + "\n");
       });
 
