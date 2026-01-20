@@ -27,6 +27,8 @@ export function SortButton({ onSortChange, className = "" }: SortButtonProps) {
     { label: "Area: Large to Small", value: "area", direction: "desc" },
     { label: "Name: A to Z", value: "name", direction: "asc" },
     { label: "Name: Z to A", value: "name", direction: "desc" },
+    { label: "Date: Newest First", value: "date", direction: "desc" },
+    { label: "Date: Oldest First", value: "date", direction: "asc" },
   ];
 
   // Handle click outside to close dropdown

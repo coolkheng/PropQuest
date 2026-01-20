@@ -12,7 +12,7 @@ dotenv.config();
 // WARNING: Never use this in production!
 if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0") {
   console.warn(
-    "⚠️  WARNING: SSL certificate verification is disabled. This should only be used in development!"
+    "⚠️  WARNING: SSL certificate verification is disabled. This should only be used in development!",
   );
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
@@ -35,7 +35,7 @@ app.use(
   cors({
     origin: allowedOrigins,
     credentials: true, // CRITICAL: Required for httpOnly cookies cross-domain
-  })
+  }),
 );
 
 // Parse JSON request bodies
@@ -96,7 +96,7 @@ app.get("/api/properties", async (req, res) => {
         : new RegExp(searchTerm, "i");
 
       console.log(
-        `Search term: "${searchTerm}", Strict pattern: ${strictPattern}, Use strict for all: ${useStrictForAll}`
+        `Search term: "${searchTerm}", Strict pattern: ${strictPattern}, Use strict for all: ${useStrictForAll}`,
       );
 
       query.$or = [
@@ -112,7 +112,7 @@ app.get("/api/properties", async (req, res) => {
       const locationTerm = req.query.location.trim();
       const escapedLocation = locationTerm.replace(
         /[.*+?^${}()|[\]\\]/g,
-        "\\$&"
+        "\\$&",
       );
       const strictLocationPattern = `(^|\\s|,|/|-)${escapedLocation}(?![0-9a-zA-Z])`;
       const strictLocationRegex = new RegExp(strictLocationPattern, "i");
@@ -124,7 +124,7 @@ app.get("/api/properties", async (req, res) => {
         : new RegExp(locationTerm, "i");
 
       console.log(
-        `Location filter: "${locationTerm}", Pattern: ${strictLocationPattern}, Use strict for all: ${useStrictForAll}`
+        `Location filter: "${locationTerm}", Pattern: ${strictLocationPattern}, Use strict for all: ${useStrictForAll}`,
       );
 
       // Add to existing $and or create new one
@@ -224,6 +224,9 @@ app.get("/api/properties", async (req, res) => {
         case "name":
           sortStage = { title: direction };
           break;
+        case "date":
+          sortStage = { date_listed: direction };
+          break;
         default:
           sortStage = { _id: -1 };
       }
@@ -233,7 +236,7 @@ app.get("/api/properties", async (req, res) => {
 
     // Get total count for pagination info
     const totalCount = await db
-      .collection("properties5jancleaned")
+      .collection("properties20Jan")
       .countDocuments(query);
 
     // Use aggregation pipeline to handle type conversion for sorting
@@ -281,7 +284,7 @@ app.get("/api/properties", async (req, res) => {
 
     // Fetch paginated properties using aggregation
     const properties = await db
-      .collection("properties5jancleaned")
+      .collection("properties20Jan")
       .aggregate(pipeline)
       .toArray();
 
@@ -299,141 +302,6 @@ app.get("/api/properties", async (req, res) => {
     console.error("❌ /api/properties error:", error);
     console.error("Error details:", error.message);
     res.status(500).json({ error: "Failed to fetch properties" });
-  }
-});
-
-// --- SMART LISTING (Step 2): Candidate selection based on user preferences ---
-app.get("/api/properties/smart-listing", async (req, res) => {
-  try {
-    const db = await connectToDatabase();
-
-    // Parse user preferences from query string
-    const preferences = req.query.preferences
-      ? JSON.parse(req.query.preferences)
-      : null;
-
-    if (!preferences) {
-      // No preferences, fallback to regular listing
-      const queryParams = new URLSearchParams(req.query).toString();
-      return res.redirect(307, `/api/properties?${queryParams}`);
-    }
-
-    console.log("📊 Smart listing with preferences:", preferences);
-
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 60;
-    const skip = (page - 1) * limit;
-
-    let recommendedProperties = [];
-    let candidateIds = [];
-
-    // Only fetch recommended candidates on page 1
-    if (page === 1) {
-      const candidateQuery = {
-        address: new RegExp(preferences.dominant_location, "i"),
-        price: {
-          $gte: Math.floor(preferences.avg_price * 0.6),
-          $lte: Math.ceil(preferences.avg_price * 1.4),
-        },
-        house_type: new RegExp(preferences.dominant_type, "i"),
-        furnishing: new RegExp(preferences.furnishing_preference, "i"),
-      };
-
-      // Add bedroom preference (±1 room tolerance)
-      if (preferences.avg_beds > 0) {
-        candidateQuery.$expr = {
-          $and: [
-            {
-              $gte: [
-                {
-                  $convert: {
-                    input: "$beds",
-                    to: "double",
-                    onError: 0,
-                    onNull: 0,
-                  },
-                },
-                preferences.avg_beds - 1,
-              ],
-            },
-            {
-              $lte: [
-                {
-                  $convert: {
-                    input: "$beds",
-                    to: "double",
-                    onError: 0,
-                    onNull: 0,
-                  },
-                },
-                preferences.avg_beds + 1,
-              ],
-            },
-          ],
-        };
-      }
-
-      console.log("🔍 Candidate query:", candidateQuery);
-
-      const candidates = await db
-        .collection("properties5jancleaned")
-        .find(candidateQuery)
-        .limit(50)
-        .toArray();
-
-      candidateIds = candidates.map((c) => c._id);
-      recommendedProperties = candidates.map((prop) => ({
-        ...prop,
-        is_recommended: true,
-      }));
-
-      console.log(
-        `✅ Found ${candidates.length} recommended candidates for ${preferences.dominant_location}`
-      );
-    }
-
-    // Normal query - always exclude recommended IDs to prevent duplicates
-    const normalQuery =
-      candidateIds.length > 0 ? { _id: { $nin: candidateIds } } : {};
-
-    // Calculate skip and limit for normal properties
-    const normalSkip = page === 1 ? 0 : skip - recommendedProperties.length;
-    const normalLimit =
-      page === 1 ? limit - recommendedProperties.length : limit;
-
-    const normalProperties = await db
-      .collection("properties5jancleaned")
-      .find(normalQuery)
-      .skip(Math.max(0, normalSkip))
-      .limit(normalLimit)
-      .toArray();
-
-    // Merge: recommended first (page 1 only), then normal
-    const mergedProperties = [...recommendedProperties, ...normalProperties];
-
-    const totalNormal = await db
-      .collection("properties5jancleaned")
-      .countDocuments(normalQuery);
-    const totalWithRecommended = totalNormal + recommendedProperties.length;
-
-    console.log(
-      `🔀 Page ${page}: ${recommendedProperties.length} recommended + ${normalProperties.length} normal = ${mergedProperties.length} total`
-    );
-
-    res.json({
-      properties: mergedProperties,
-      pagination: {
-        currentPage: page,
-        totalPages: Math.ceil(totalWithRecommended / limit),
-        totalCount: totalWithRecommended,
-        pageSize: limit,
-        hasMore: skip + mergedProperties.length < totalWithRecommended,
-      },
-      recommendedCount: recommendedProperties.length,
-    });
-  } catch (error) {
-    console.error("❌ /api/properties/smart-listing error:", error);
-    res.status(500).json({ error: "Failed to fetch smart listing" });
   }
 });
 
@@ -460,7 +328,7 @@ app.get("/api/properties/personalized", async (req, res) => {
 
     console.log(
       "User preferences for personalized properties:",
-      JSON.stringify(prefs, null, 2)
+      JSON.stringify(prefs, null, 2),
     );
 
     // Normalize field names for compatibility
@@ -472,7 +340,7 @@ app.get("/api/properties/personalized", async (req, res) => {
 
     console.log(
       "Normalized preferences:",
-      JSON.stringify(normalizedPrefs, null, 2)
+      JSON.stringify(normalizedPrefs, null, 2),
     );
 
     // Check if user has set any preferences
@@ -503,12 +371,12 @@ app.get("/api/properties/personalized", async (req, res) => {
     // FR_12: Fall back to default ranking (by recency) if no preferences
     if (!hasPreferences) {
       console.log(
-        "No preferences found. Using default ranking by recency. Showing only 50 newest listings."
+        "No preferences found. Using default ranking by recency. Showing only 50 newest listings.",
       );
 
       // Only show top 50 newest listings, no pagination
       const rawProperties = await db
-        .collection("properties5jancleaned")
+        .collection("properties20Jan")
         .find({})
         .sort({ date_listed: -1 }) // Sort by newest first
         .limit(50)
@@ -1175,7 +1043,7 @@ app.get("/api/properties/personalized", async (req, res) => {
     // Get total count of scored properties
     console.log("Running aggregation pipeline...");
     const scoredProperties = await db
-      .collection("properties5jancleaned")
+      .collection("properties20Jan")
       .aggregate(pipeline)
       .toArray();
     console.log(`Found ${scoredProperties.length} properties with score > 0`);
@@ -1187,22 +1055,16 @@ app.get("/api/properties/personalized", async (req, res) => {
       console.log("=".repeat(80));
       console.log(`USER PREFERENCES:`);
       console.log(
-        `   Budget: RM ${(
-          normalizedPrefs.budget_range?.min || 0
-        ).toLocaleString()} - RM ${(
-          normalizedPrefs.budget_range?.max || 999999999
-        ).toLocaleString()}`
+        `   Budget: RM ${(normalizedPrefs.budget_range?.min || 0).toLocaleString()} - RM ${(normalizedPrefs.budget_range?.max || 999999999).toLocaleString()}`,
       );
       console.log(
-        `   Locations: ${
-          normalizedPrefs.preferred_locations.join(", ") || "Any"
-        }`
+        `   Locations: ${normalizedPrefs.preferred_locations.join(", ") || "Any"}`,
       );
       console.log(
-        `   Types: ${normalizedPrefs.preferred_types.join(", ") || "Any"}`
+        `   Types: ${normalizedPrefs.preferred_types.join(", ") || "Any"}`,
       );
       console.log(
-        `   Min Size: ${normalizedPrefs.min_size_sqft || "Any"} sqft`
+        `   Min Size: ${normalizedPrefs.min_size_sqft || "Any"} sqft`,
       );
       if (normalizedPrefs.rooms)
         console.log(`   Rooms: ${normalizedPrefs.rooms}`);
@@ -1210,7 +1072,7 @@ app.get("/api/properties/personalized", async (req, res) => {
         console.log(`   Bathrooms: ${normalizedPrefs.toilets}`);
       console.log("=".repeat(80));
       console.log(
-        "SCORING SYSTEM: Location (40) + Price (30) + Type (15) + Size (10) + Rooms (3) + Baths (2) = 100"
+        "SCORING SYSTEM: Location (40) + Price (30) + Type (15) + Size (10) + Rooms (3) + Baths (2) = 100",
       );
       console.log("=".repeat(80) + "\n");
 
@@ -1228,35 +1090,33 @@ app.get("/api/properties/personalized", async (req, res) => {
         console.log("-".repeat(80));
         console.log(`Property: ${prop.title}`);
         console.log(
-          `Location: ${prop.address?.substring(0, 65)}${
-            prop.address?.length > 65 ? "..." : ""
-          }`
+          `Location: ${prop.address?.substring(0, 65)}${prop.address?.length > 65 ? "..." : ""}`,
         );
         console.log(
-          `Type: ${prop.house_type}  |  Price: RM ${price.toLocaleString()}`
+          `Type: ${prop.house_type}  |  Price: RM ${price.toLocaleString()}`,
         );
         console.log(
-          `Size: ${prop.sqft}  |  Beds: ${prop.beds}  |  Baths: ${prop.baths}`
+          `Size: ${prop.sqft}  |  Beds: ${prop.beds}  |  Baths: ${prop.baths}`,
         );
         console.log("-".repeat(80));
         console.log(`SCORE BREAKDOWN:`);
         console.log(
-          `   Location Match:    ${locationScore.toFixed(1).padStart(5)} / 40.0`
+          `   Location Match:    ${locationScore.toFixed(1).padStart(5)} / 40.0`,
         );
         console.log(
-          `   Price Match:       ${priceScore.toFixed(1).padStart(5)} / 30.0`
+          `   Price Match:       ${priceScore.toFixed(1).padStart(5)} / 30.0`,
         );
         console.log(
-          `   Type Match:        ${typeScore.toFixed(1).padStart(5)} / 15.0`
+          `   Type Match:        ${typeScore.toFixed(1).padStart(5)} / 15.0`,
         );
         console.log(
-          `   Size Match:        ${sizeScore.toFixed(1).padStart(5)} / 10.0`
+          `   Size Match:        ${sizeScore.toFixed(1).padStart(5)} / 10.0`,
         );
         console.log(
-          `   Rooms Match:       ${roomsScore.toFixed(1).padStart(5)} / 3.0`
+          `   Rooms Match:       ${roomsScore.toFixed(1).padStart(5)} / 3.0`,
         );
         console.log(
-          `   Bathrooms Match:   ${bathsScore.toFixed(1).padStart(5)} / 2.0`
+          `   Bathrooms Match:   ${bathsScore.toFixed(1).padStart(5)} / 2.0`,
         );
         console.log("-".repeat(80));
         console.log(`TOTAL RELEVANCE SCORE: ${prop.score.toFixed(1)} / 100.0`);
@@ -1264,7 +1124,7 @@ app.get("/api/properties/personalized", async (req, res) => {
       });
 
       console.log(
-        "NOTE: Higher scores indicate better match to your preferences\n"
+        "NOTE: Higher scores indicate better match to your preferences\n",
       );
     }
     // ===== END DEMO LOGGING =====
@@ -1289,7 +1149,7 @@ app.get("/api/properties/personalized", async (req, res) => {
     });
 
     console.log(
-      `Returning ${cleanedProperties.length} properties for page ${page}`
+      `Returning ${cleanedProperties.length} properties for page ${page}`,
     );
 
     res.json({
@@ -1317,7 +1177,13 @@ app.get("/api/properties/personalized", async (req, res) => {
 app.get("/api/properties/:id", async (req, res) => {
   try {
     const db = await connectToDatabase();
-    const property = await db.collection("properties5jancleaned").findOne(
+
+    // Validate ObjectId format
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid property ID format" });
+    }
+
+    const property = await db.collection("properties20Jan").findOne(
       { _id: new ObjectId(req.params.id) },
       {
         projection: {
@@ -1337,7 +1203,7 @@ app.get("/api/properties/:id", async (req, res) => {
           facilities: 1,
           historical_prices: 1,
         },
-      }
+      },
     );
 
     if (!property) {
@@ -1462,6 +1328,7 @@ app.post("/api/properties/search", async (req, res) => {
     const pipeline = [{ $match: matchStage }];
 
     // Stage 2: Convert numeric fields
+
     pipeline.push({
       $addFields: {
         price_num: {
@@ -1580,6 +1447,7 @@ app.post("/api/properties/search", async (req, res) => {
     });
 
     // Stage 3: Numeric filters
+
     const numericMatch = {};
     if (filters.price_min != null || filters.price_max != null) {
       numericMatch.price_num = {};
@@ -1615,7 +1483,7 @@ app.post("/api/properties/search", async (req, res) => {
     });
     console.log("Aggregation Pipeline:", JSON.stringify(pipeline, null, 2));
     const results = await db
-      .collection("properties5jancleaned")
+      .collection("properties20Jan")
       .aggregate(pipeline)
       .toArray();
     res.json(results);
@@ -2040,16 +1908,16 @@ app.get("/api/users/me/preferences", async (req, res) => {
         stored.rooms.min != null
           ? Number(stored.rooms.min)
           : stored.rooms.max != null
-          ? Number(stored.rooms.max)
-          : null;
+            ? Number(stored.rooms.max)
+            : null;
     }
     if (stored.toilets && typeof stored.toilets === "object") {
       normalizedStored.toilets =
         stored.toilets.min != null
           ? Number(stored.toilets.min)
           : stored.toilets.max != null
-          ? Number(stored.toilets.max)
-          : null;
+            ? Number(stored.toilets.max)
+            : null;
     }
 
     const prefsToReturn = { ...defaultPrefs, ...normalizedStored };
@@ -2086,12 +1954,12 @@ app.post("/api/users/me/preferences", async (req, res) => {
         newPrefs?.min_size_sqft != null
           ? newPrefs.min_size_sqft
           : newPrefs?.ideal_size_sqft != null
-          ? newPrefs.ideal_size_sqft
-          : existing?.min_size_sqft != null
-          ? existing.min_size_sqft
-          : existing?.ideal_size_sqft != null
-          ? existing.ideal_size_sqft
-          : null;
+            ? newPrefs.ideal_size_sqft
+            : existing?.min_size_sqft != null
+              ? existing.min_size_sqft
+              : existing?.ideal_size_sqft != null
+                ? existing.ideal_size_sqft
+                : null;
       const n = Number(candidate);
       return Number.isFinite(n) ? n : null;
     })();
@@ -2100,32 +1968,32 @@ app.post("/api/users/me/preferences", async (req, res) => {
       preferred_locations: Array.isArray(newPrefs.preferred_locations)
         ? newPrefs.preferred_locations.map((s) => String(s))
         : Array.isArray(existing.preferred_locations)
-        ? existing.preferred_locations.map((s) => String(s))
-        : [],
+          ? existing.preferred_locations.map((s) => String(s))
+          : [],
       budget_range: {
         min:
           newPrefs?.budget_range?.min != null
             ? Number(newPrefs.budget_range.min)
             : existing?.budget_range?.min != null
-            ? Number(existing.budget_range.min)
-            : null,
+              ? Number(existing.budget_range.min)
+              : null,
         max:
           newPrefs?.budget_range?.max != null
             ? Number(newPrefs.budget_range.max)
             : existing?.budget_range?.max != null
-            ? Number(existing.budget_range.max)
-            : null,
+              ? Number(existing.budget_range.max)
+              : null,
       },
       preferred_types: Array.isArray(newPrefs.preferred_types)
         ? newPrefs.preferred_types.map((s) => String(s))
         : Array.isArray(existing.preferred_types)
-        ? existing.preferred_types.map((s) => String(s))
-        : [],
+          ? existing.preferred_types.map((s) => String(s))
+          : [],
       keywords: Array.isArray(newPrefs.keywords)
         ? newPrefs.keywords.map((s) => String(s))
         : Array.isArray(existing.keywords)
-        ? existing.keywords.map((s) => String(s))
-        : [],
+          ? existing.keywords.map((s) => String(s))
+          : [],
       // canonical min size (explicitly include both canonical and legacy keys)
       min_size_sqft: computed_min_size_sqft,
       ideal_size_sqft: computed_min_size_sqft,
@@ -2136,18 +2004,18 @@ app.post("/api/users/me/preferences", async (req, res) => {
             ? newPrefs.rooms.min != null
               ? Number(newPrefs.rooms.min)
               : newPrefs.rooms.max != null
-              ? Number(newPrefs.rooms.max)
-              : null
+                ? Number(newPrefs.rooms.max)
+                : null
             : Number(newPrefs.rooms)
           : existing?.rooms != null
-          ? typeof existing.rooms === "object"
-            ? existing.rooms.min != null
-              ? Number(existing.rooms.min)
-              : existing.rooms.max != null
-              ? Number(existing.rooms.max)
-              : null
-            : Number(existing.rooms)
-          : null,
+            ? typeof existing.rooms === "object"
+              ? existing.rooms.min != null
+                ? Number(existing.rooms.min)
+                : existing.rooms.max != null
+                  ? Number(existing.rooms.max)
+                  : null
+              : Number(existing.rooms)
+            : null,
       // toilets (single numeric)
       toilets:
         newPrefs?.toilets != null
@@ -2155,30 +2023,30 @@ app.post("/api/users/me/preferences", async (req, res) => {
             ? newPrefs.toilets.min != null
               ? Number(newPrefs.toilets.min)
               : newPrefs.toilets.max != null
-              ? Number(newPrefs.toilets.max)
-              : null
+                ? Number(newPrefs.toilets.max)
+                : null
             : Number(newPrefs.toilets)
           : existing?.toilets != null
-          ? typeof existing.toilets === "object"
-            ? existing.toilets.min != null
-              ? Number(existing.toilets.min)
-              : existing.toilets.max != null
-              ? Number(existing.toilets.max)
-              : null
-            : Number(existing.toilets)
-          : null,
+            ? typeof existing.toilets === "object"
+              ? existing.toilets.min != null
+                ? Number(existing.toilets.min)
+                : existing.toilets.max != null
+                  ? Number(existing.toilets.max)
+                  : null
+              : Number(existing.toilets)
+            : null,
       size_tolerance_pct:
         newPrefs?.size_tolerance_pct != null
           ? Number(newPrefs.size_tolerance_pct)
           : existing?.size_tolerance_pct != null
-          ? Number(existing.size_tolerance_pct)
-          : 10,
+            ? Number(existing.size_tolerance_pct)
+            : 10,
       radius_km:
         newPrefs?.radius_km != null
           ? Number(newPrefs.radius_km)
           : existing?.radius_km != null
-          ? Number(existing.radius_km)
-          : null,
+            ? Number(existing.radius_km)
+            : null,
       updated_at: new Date().toISOString(),
     };
 
@@ -2188,7 +2056,7 @@ app.post("/api/users/me/preferences", async (req, res) => {
       .collection("users")
       .updateOne(
         { _id: new ObjectId(userId) },
-        { $set: { preferences: prefs } }
+        { $set: { preferences: prefs } },
       );
 
     if (result.matchedCount === 0) {
