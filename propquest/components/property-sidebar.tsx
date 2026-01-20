@@ -32,7 +32,7 @@ export function PropertySidebar({ propertyData }: PropertySidebarProps) {
         parking={1}
       />
       <Facilities facilities={propertyData.facilities} />
-      <SimilarProperties />
+      {/* <SimilarProperties /> */}
     </div>
   )
 }
