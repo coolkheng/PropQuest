@@ -61,9 +61,8 @@ function trackPropertyClick(property: {
 
     // Check if this property was already tracked recently (within last 5 seconds)
     const recentlyTracked = clicks.find(
-      (click: any) => 
-        click._id === property._id && 
-        Date.now() - click.timestamp < 5000
+      (click: any) =>
+        click._id === property._id && Date.now() - click.timestamp < 5000,
     );
 
     if (recentlyTracked) {
@@ -77,7 +76,6 @@ function trackPropertyClick(property: {
     const trimmedClicks = clicks.slice(0, 10);
 
     sessionStorage.setItem("userPropertyClicks", JSON.stringify(trimmedClicks));
-  
   } catch (error) {
     console.error("Failed to track click:", error);
   }
@@ -175,6 +173,8 @@ export default function PropertyDetailPage({
               <PriceHistory
                 priceHistory={propertyData?.priceHistory || []}
                 currentPrice={propertyData?.price}
+                beds={propertyData?.beds}
+                sqft={propertyData?.sqft}
               />
             </div>
           </>

@@ -305,6 +305,142 @@ app.get("/api/properties", async (req, res) => {
   }
 });
 
+
+// --- SMART LISTING (Step 2): Candidate selection based on user preferences ---
+app.get("/api/properties/smart-listing", async (req, res) => {
+  try {
+    const db = await connectToDatabase();
+
+    // Parse user preferences from query string
+    const preferences = req.query.preferences
+      ? JSON.parse(req.query.preferences)
+      : null;
+
+    if (!preferences) {
+      // No preferences, fallback to regular listing
+      const queryParams = new URLSearchParams(req.query).toString();
+      return res.redirect(307, `/api/properties?${queryParams}`);
+    }
+
+    console.log("📊 Smart listing with preferences:", preferences);
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 60;
+    const skip = (page - 1) * limit;
+
+    let recommendedProperties = [];
+    let candidateIds = [];
+
+    // Only fetch recommended candidates on page 1
+    if (page === 1) {
+      const candidateQuery = {
+        address: new RegExp(preferences.dominant_location, "i"),
+        price: {
+          $gte: Math.floor(preferences.avg_price * 0.6),
+          $lte: Math.ceil(preferences.avg_price * 1.4),
+        },
+        house_type: new RegExp(preferences.dominant_type, "i"),
+        furnishing: new RegExp(preferences.furnishing_preference, "i"),
+      };
+
+      // Add bedroom preference (±1 room tolerance)
+      if (preferences.avg_beds > 0) {
+        candidateQuery.$expr = {
+          $and: [
+            {
+              $gte: [
+                {
+                  $convert: {
+                    input: "$beds",
+                    to: "double",
+                    onError: 0,
+                    onNull: 0,
+                  },
+                },
+                preferences.avg_beds - 1,
+              ],
+            },
+            {
+              $lte: [
+                {
+                  $convert: {
+                    input: "$beds",
+                    to: "double",
+                    onError: 0,
+                    onNull: 0,
+                  },
+                },
+                preferences.avg_beds + 1,
+              ],
+            },
+          ],
+        };
+      }
+
+      console.log("🔍 Candidate query:", candidateQuery);
+
+      const candidates = await db
+        .collection("properties20Jan")
+        .find(candidateQuery)
+        .limit(50)
+        .toArray();
+
+      candidateIds = candidates.map((c) => c._id);
+      recommendedProperties = candidates.map((prop) => ({
+        ...prop,
+        is_recommended: true,
+      }));
+
+      console.log(
+        `✅ Found ${candidates.length} recommended candidates for ${preferences.dominant_location}`
+      );
+    }
+
+    // Normal query - always exclude recommended IDs to prevent duplicates
+    const normalQuery =
+      candidateIds.length > 0 ? { _id: { $nin: candidateIds } } : {};
+
+    // Calculate skip and limit for normal properties
+    const normalSkip = page === 1 ? 0 : skip - recommendedProperties.length;
+    const normalLimit =
+      page === 1 ? limit - recommendedProperties.length : limit;
+
+    const normalProperties = await db
+      .collection("properties20Jan")
+      .find(normalQuery)
+      .skip(Math.max(0, normalSkip))
+      .limit(normalLimit)
+      .toArray();
+
+    // Merge: recommended first (page 1 only), then normal
+    const mergedProperties = [...recommendedProperties, ...normalProperties];
+
+    const totalNormal = await db
+      .collection("properties20Jan")
+      .countDocuments(normalQuery);
+    const totalWithRecommended = totalNormal + recommendedProperties.length;
+
+    console.log(
+      `🔀 Page ${page}: ${recommendedProperties.length} recommended + ${normalProperties.length} normal = ${mergedProperties.length} total`
+    );
+
+    res.json({
+      properties: mergedProperties,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalWithRecommended / limit),
+        totalCount: totalWithRecommended,
+        pageSize: limit,
+        hasMore: skip + mergedProperties.length < totalWithRecommended,
+      },
+      recommendedCount: recommendedProperties.length,
+    });
+  } catch (error) {
+    console.error("❌ /api/properties/smart-listing error:", error);
+    res.status(500).json({ error: "Failed to fetch smart listing" });
+  }
+});
+
 // --- PERSONALIZED PROPERTIES (Module 4): Get top 100 ranked properties based on user preferences ---
 app.get("/api/properties/personalized", async (req, res) => {
   console.log("🎯 /api/properties/personalized called");
