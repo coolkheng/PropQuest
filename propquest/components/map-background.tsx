@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { loadModules } from "esri-loader";
+import { MAP_MAX_AI_RESULTS, mapPropertyLimit } from "@/lib/map-limits";
 
 interface MapBackgroundProps {
   hoveredProperty: string | null;
@@ -96,10 +97,9 @@ export function MapBackground({
         setIsMapLoading(false);
 
         // Use the geocoder
-        // Limit to 50 properties for initial map loading, but show all for AI search results
-        const propertiesToGeocode = isAISearch
-          ? Property
-          : Property.slice(0, 50);
+        // Cap the pins to save geocoding credits: 50 on initial load, 100 for AI search
+        // (AI results arrive sorted best-value first, so the AI's picks are included)
+        const propertiesToGeocode = Property.slice(0, mapPropertyLimit(isAISearch));
 
         // Clear previous graphics
         graphicsMapRef.current.clear();
@@ -500,6 +500,15 @@ export function MapBackground({
           <p className="text-sm">
             ⚠️ Some properties may not display correctly. Map service is
             experiencing high demand.
+          </p>
+        </div>
+      )}
+
+      {/* Result cap badge: only the first 100 AI results get pins */}
+      {isAISearch && Property.length > MAP_MAX_AI_RESULTS && !mapError && (
+        <div className="absolute top-4 right-4 bg-white/95 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-full shadow z-10">
+          <p className="text-xs font-medium">
+            Showing {MAP_MAX_AI_RESULTS} of 99+ results
           </p>
         </div>
       )}

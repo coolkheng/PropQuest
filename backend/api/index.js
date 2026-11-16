@@ -66,6 +66,9 @@ async function connectToDatabase() {
 // OpenAI setup
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Model used for all chat calls. Override with OPENAI_MODEL in .env.
+const OPENAI_MODEL = process.env.OPENAI_MODEL;
+
 // Routes
 app.get("/api/properties", async (req, res) => {
   try {
@@ -1390,7 +1393,8 @@ app.post("/api/chat/search", async (req, res) => {
   if (!message) return res.status(400).json({ error: "Message is required" });
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: OPENAI_MODEL,
+      reasoning_effort: "none", // reasoning off: required for temperature, and keeps replies fast/cheap
       messages: [
         {
           role: "system",
@@ -1427,7 +1431,7 @@ app.post("/api/chat/search", async (req, res) => {
           },
         },
       },
-      max_tokens: 120,
+      max_completion_tokens: 120,
       temperature: 0.3,
     });
     res.json({ reply: response.choices[0].message.content });
@@ -1438,12 +1442,26 @@ app.post("/api/chat/search", async (req, res) => {
 });
 
 app.post("/api/properties/search", async (req, res) => {
-  let { filters } = req.body;
-  filters = JSON.parse(filters);
-  console.log("Received Filters:", filters);
   try {
+    const filters = parseFilters(req.body.filters);
+    console.log("Received Filters:", filters);
     const db = await connectToDatabase();
+    const results = await searchProperties(db, filters);
+    res.json(results);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Search failed" });
+  }
+});
 
+// Filters may arrive as a JSON string (from /api/chat/search) or an object.
+function parseFilters(filters) {
+  if (!filters) return {};
+  return typeof filters === "string" ? JSON.parse(filters) : filters;
+}
+
+// Runs the dynamic aggregation pipeline for the given filters and returns all matches.
+async function searchProperties(db, filters) {
     // Stage 1: Basic filters
     const matchStage = {};
     if (filters.location)
@@ -1619,14 +1637,213 @@ app.post("/api/properties/search", async (req, res) => {
       },
     });
     console.log("Aggregation Pipeline:", JSON.stringify(pipeline, null, 2));
-    const results = await db
-      .collection("properties20Jan")
-      .aggregate(pipeline)
-      .toArray();
-    res.json(results);
+    return db.collection("properties20Jan").aggregate(pipeline).toArray();
+}
+
+// ---------------------------------------------------------------------------
+// RAG: answer from retrieved listings
+// ---------------------------------------------------------------------------
+
+// Caps that keep the prompt (and cost) roughly flat per message.
+const RAG_TOP_N = 8; // listings sent to the model in detail
+const RAG_DETAILS_CHARS = 400; // characters of each listing's description
+const RAG_HISTORY_MESSAGES = 4; // earlier chat messages sent with a follow-up
+const RAG_HISTORY_CHARS = 800; // max characters per history message
+
+const RAG_ANSWER_TEXT = `You are PropQuest's property assistant for Malaysia.
+Answer the user's QUESTION using ONLY the DATA provided (search filters, stats over all matches, and the top listings).
+Rules:
+- Never invent listings, prices, facilities or facts that are not in DATA. If DATA does not cover something (e.g. schools, transport), say so briefly.
+- "stats" describe ALL matches; "listings" are only the best-value few (lowest price per sqft) shown in detail. Make that clear when it matters.
+- Prices are in RM. Format like RM 650,000 or RM 650k. psf = price per square foot.
+- Refer to listings by title (and address if titles repeat). Never write ids in the reply text; put the ids of the listings you recommend or single out in recommended_ids instead.
+- If there are no matches, say so and suggest which filter to loosen.
+- Be concise: a one-line summary, then up to 3 short bullet points. Use Markdown bold for listing names.`;
+
+function median(nums) {
+  if (!nums.length) return null;
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2);
+}
+
+function toNumber(v) {
+  if (typeof v === "number") return v;
+  const n = parseFloat(String(v ?? "").replace(/[^0-9.]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+// Summary numbers over ALL results, computed in code so the model can't get them wrong.
+function buildStats(results) {
+  const prices = results.map((p) => toNumber(p.price)).filter((n) => n > 0);
+  const psfs = results.map((p) => toNumber(p.psf)).filter((n) => n > 0);
+  const byType = {};
+  results.forEach((p) => {
+    const t = p.house_type || "Unknown";
+    byType[t] = (byType[t] || 0) + 1;
+  });
+  return {
+    total_matches: results.length,
+    price: prices.length
+      ? { min: Math.min(...prices), median: median(prices), max: Math.max(...prices) }
+      : null,
+    median_psf: median(psfs),
+    by_type: byType,
+  };
+}
+
+// Pick the listings to show the model in detail: best value (lowest price per sqft).
+// Every result already matches the user's filters (budget included), so value is the
+// most useful tie-breaker. Listings without a valid psf go last.
+function sortByValue(results) {
+  const psf = (p) => toNumber(p.psf) || Infinity;
+  return [...results].sort((a, b) => psf(a) - psf(b));
+}
+
+// Trimmed listing for the prompt: key facts only, no images/urls.
+function toContextItem(doc) {
+  const details = String(doc.details || "").replace(/\s+/g, " ").trim();
+  return {
+    id: String(doc._id),
+    title: doc.title,
+    address: doc.address,
+    price: toNumber(doc.price),
+    beds: doc.beds,
+    baths: doc.baths,
+    sqft: toNumber(doc.sqft),
+    psf: toNumber(doc.psf),
+    house_type: doc.house_type,
+    furnishing: doc.furnishing,
+    lease_type: doc.lease_type,
+    facilities: Array.isArray(doc.facilities) ? doc.facilities : [],
+    date_listed: String(doc.date_listed || "").replace(/^Listed on\s*/i, ""),
+    details:
+      details.length > RAG_DETAILS_CHARS
+        ? details.slice(0, RAG_DETAILS_CHARS) + "…"
+        : details,
+    price_history: Array.isArray(doc.historical_prices)
+      ? doc.historical_prices.slice(0, 3).map((h) => ({ date: h.date, price: h.price }))
+      : [],
+  };
+}
+
+// Only keep the last few user/assistant text messages; never trust the client to cap it.
+function sanitizeHistory(history) {
+  if (!Array.isArray(history)) return [];
+  return history
+    .filter(
+      (m) =>
+        m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string",
+    )
+    .slice(-RAG_HISTORY_MESSAGES)
+    .map((m) => ({ role: m.role, content: m.content.slice(0, RAG_HISTORY_CHARS) }));
+}
+
+// Load listings by id (for follow-ups), keeping the order the user saw them in.
+async function findPropertiesByIds(db, ids) {
+  const clean = ids.filter((id) => typeof id === "string").slice(0, RAG_TOP_N);
+  const objectIds = clean.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
+  const docs = await db
+    .collection("properties20Jan")
+    .find({ _id: { $in: [...objectIds, ...clean] } })
+    .toArray();
+  const byId = new Map(docs.map((d) => [String(d._id), d]));
+  return clean.map((id) => byId.get(id)).filter(Boolean);
+}
+
+app.post("/api/chat/answer", async (req, res) => {
+  const { message, propertyIds, history } = req.body;
+  if (!message) return res.status(400).json({ error: "Message is required" });
+
+  const isFollowUp = Array.isArray(propertyIds) && propertyIds.length > 0;
+  let filters = {};
+  let results;
+  let top;
+
+  // 1. Retrieve
+  try {
+    const db = await connectToDatabase();
+    if (isFollowUp) {
+      top = await findPropertiesByIds(db, propertyIds);
+      results = top;
+    } else {
+      filters = parseFilters(req.body.filters);
+      // Best value first: the map only pins the first 100, so the AI's picks are always on it
+      results = sortByValue(await searchProperties(db, filters));
+      top = results.slice(0, RAG_TOP_N);
+    }
   } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ error: "Search failed" });
+    console.error("RAG retrieval error:", error);
+    return res.status(500).json({ error: "Search failed" });
+  }
+
+  const stats = buildStats(results);
+  const contextIds = top.map((p) => String(p._id));
+  const payload = {
+    // Follow-ups return no new properties, so the map keeps what it shows.
+    properties: isFollowUp ? undefined : results,
+    stats,
+    context_ids: contextIds,
+  };
+
+  // 2. Augment
+  const data = {
+    ...(isFollowUp ? {} : { filters }),
+    stats: isFollowUp ? { ...stats, note: "stats over the listings being discussed" } : stats,
+    listings: top.map(toContextItem),
+  };
+  const messages = [
+    { role: "system", content: RAG_ANSWER_TEXT },
+    ...sanitizeHistory(history),
+    {
+      role: "user",
+      content: `DATA:\n${JSON.stringify(data)}\n\nQUESTION: ${message}`,
+    },
+  ];
+
+  // 3. Generate
+  try {
+    const openaiResponse = await openai.chat.completions.create({
+      model: OPENAI_MODEL,
+      reasoning_effort: "none",
+      messages,
+      max_completion_tokens: 500,
+      temperature: 0.3,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "rag_answer",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              reply: { type: "string" },
+              recommended_ids: { type: "array", items: { type: "string" } },
+            },
+            required: ["reply", "recommended_ids"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+    console.log("RAG token usage:", openaiResponse.usage);
+    const { reply, recommended_ids } = JSON.parse(
+      openaiResponse.choices[0].message.content,
+    );
+    // Only keep ids that were actually in the context.
+    const recommended = recommended_ids.filter((id) => contextIds.includes(id));
+    res.json({ ...payload, reply, recommended_ids: recommended });
+  } catch (error) {
+    // The model failing should never break search: fall back to a plain message.
+    console.error("RAG generation error:", error?.response?.data || error);
+    res.json({
+      ...payload,
+      reply: isFollowUp
+        ? "Sorry, I couldn't answer that right now. Please try again."
+        : `I found ${results.length} properties matching your criteria. Check them out on the map!`,
+      recommended_ids: [],
+      fallback: true,
+    });
   }
 });
 
@@ -1634,8 +1851,14 @@ INTENT_CLASSIFICATION_TEXT = `You are an intent classifier for a property chatbo
 Classify the user's intent into one of these three:
 - "search" (the user wants to find,search properties)
 - "question" (ONLY WHEN the user asks about your job,property info or concepts)
-- "unknown (if the intent is unclear and when search question does not specific enough )" 
+- "unknown (if the intent is unclear and when search question does not specific enough )"
 Return only JSON.`;
+
+// Added to the classifier prompt only when listings are currently shown to the user.
+const FOLLOWUP_CLASSIFICATION_TEXT = `
+The user is currently looking at search results. Also allow:
+- "followup" (the user asks about, compares, ranks or wants more detail on the listings already shown, e.g. "which of these has a pool?", "compare the first two", "is the cheapest one freehold?", "tell me more about it")
+Choose "search" instead if the user asks for a NEW or different search (new location, budget, type, etc.).`;
 
 QUESTION_TEXT = `You are an AI property assistant. 
             Answer user questions related to real estate in Malaysia. 
@@ -1655,19 +1878,29 @@ PREFERENCES_SEARCH_TEXT = `You are a property assistant.
             Condo = Condominium`;
 
 app.post("/api/chat/classify", async (req, res) => {
-  const { message } = req.body;
+  const { message, hasResults, lastAssistantMessage } = req.body;
   if (!message) return res.status(400).json({ error: "Message is required" });
+
+  const intents = hasResults
+    ? ["search", "question", "followup", "unknown"]
+    : ["search", "question", "unknown"];
+  const messages = [
+    {
+      role: "system",
+      content: INTENT_CLASSIFICATION_TEXT + (hasResults ? FOLLOWUP_CLASSIFICATION_TEXT : ""),
+    },
+  ];
+  // The last AI reply helps tell "which one is cheapest?" (follow-up) from a new search.
+  if (hasResults && typeof lastAssistantMessage === "string") {
+    messages.push({ role: "assistant", content: lastAssistantMessage.slice(0, 500) });
+  }
+  messages.push({ role: "user", content: message });
 
   try {
     const openaiResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: INTENT_CLASSIFICATION_TEXT,
-        },
-        { role: "user", content: message },
-      ],
+      model: OPENAI_MODEL,
+      reasoning_effort: "none", // reasoning off: required for temperature, and keeps replies fast/cheap
+      messages,
       response_format: {
         type: "json_schema",
         json_schema: {
@@ -1677,7 +1910,7 @@ app.post("/api/chat/classify", async (req, res) => {
             properties: {
               intent: {
                 type: "string",
-                enum: ["search", "question", "unknown"],
+                enum: intents,
               },
             },
             required: ["intent"],
@@ -1685,7 +1918,7 @@ app.post("/api/chat/classify", async (req, res) => {
           },
         },
       },
-      max_tokens: 20,
+      max_completion_tokens: 20,
       temperature: 0,
     });
     console.log("OpenAI Response:", openaiResponse.choices[0].message.content);
@@ -1704,7 +1937,8 @@ app.post("/api/chat/questions", async (req, res) => {
 
   try {
     const openaiResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: OPENAI_MODEL,
+      reasoning_effort: "none", // reasoning off: required for temperature, and keeps replies fast/cheap
       messages: [
         {
           role: "system",
@@ -1712,7 +1946,7 @@ app.post("/api/chat/questions", async (req, res) => {
         },
         { role: "user", content: message },
       ],
-      max_tokens: 200,
+      max_completion_tokens: 200,
       temperature: 0.7,
     });
 
@@ -1749,9 +1983,10 @@ app.post("/api/chat/preferences", async (req, res) => {
 
   try {
     const openaiResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: OPENAI_MODEL,
+      reasoning_effort: "none", // reasoning off: required for temperature, and keeps replies fast/cheap
       messages: message,
-      max_tokens: 150,
+      max_completion_tokens: 150,
       temperature: 0.3,
       response_format: {
         type: "json_schema",

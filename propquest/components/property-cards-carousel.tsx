@@ -1,6 +1,7 @@
 "use client";
 
 import { MapPropertyCard } from "./map-property-card";
+import { mapPropertyLimit } from "@/lib/map-limits";
 
 interface Property {
   _id: string;
@@ -36,8 +37,8 @@ export function PropertyCardsCarousel({
   onPropertyClick,
   isAISearch = false,
 }: PropertyCardsCarouselProps) {
-  // Ensure properties is always an array
-  const displayProperties = isAISearch ? properties : properties.slice(0, 50);
+  // Same cap as the map, so every card has a matching pin
+  const displayProperties = properties.slice(0, mapPropertyLimit(isAISearch));
 
   return (
     <div className="absolute bottom-4 left-4 right-4">

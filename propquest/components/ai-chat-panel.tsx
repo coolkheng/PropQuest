@@ -19,6 +19,29 @@ interface ChatMessage {
   isTyping?: boolean;
 }
 
+// Response from POST /api/chat/answer (RAG: answer written from the retrieved listings)
+interface RagAnswer {
+  reply: string;
+  recommended_ids: string[];
+  context_ids: string[]; // listings the model saw; sent back for follow-ups
+  properties?: Property[]; // only for new searches, not follow-ups
+  fallback?: boolean;
+}
+
+// How many earlier messages go with a follow-up (backend caps this too).
+const RAG_HISTORY_MESSAGES = 4;
+
+// Renders **bold** inside a line (the AI replies use a little Markdown).
+function renderInline(line: string) {
+  return line.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith("**") && part.endsWith("**") ? (
+      <strong key={i}>{part.slice(2, -2)}</strong>
+    ) : (
+      <React.Fragment key={i}>{part}</React.Fragment>
+    )
+  );
+}
+
 interface AiChatPanelProps {
   properties: Property[];
   setProperties: React.Dispatch<React.SetStateAction<Property[]>>;
@@ -51,6 +74,8 @@ export function AiChatPanel({
   const question_asking_preferences = useRef("");
   const conversation = useRef<Array<{ content: string }>>([]);
   const chatStartTimeRef = useRef<number>(0);
+  // Ids of the listings the AI last talked about; lets the user ask follow-ups.
+  const lastResultIds = useRef<string[]>([]);
 
   function addMessage(content: string) {
     conversation.current.push({ content });
@@ -113,6 +138,15 @@ export function AiChatPanel({
         console.error("Error restoring personalized state:", error);
       }
     }
+
+    const savedResultIds = sessionStorage.getItem("aiChatResultIds");
+    if (savedResultIds) {
+      try {
+        lastResultIds.current = JSON.parse(savedResultIds);
+      } catch (error) {
+        console.error("Error restoring result ids:", error);
+      }
+    }
   }, []);
 
   // Save chat history to sessionStorage whenever messages or preferences change
@@ -172,10 +206,44 @@ export function AiChatPanel({
     }, 500);
   };
 
+  // Last few chat messages in OpenAI format, for follow-up context.
+  const recentHistory = () =>
+    messages.slice(-RAG_HISTORY_MESSAGES).map((m) => ({
+      role: m.type === "user" ? "user" : "assistant",
+      content: m.content,
+    }));
+
+  const lastAiMessage = () =>
+    [...messages].reverse().find((m) => m.type === "ai")?.content;
+
+  // RAG: ask the backend to answer from the listings (new search or follow-up).
+  const askRag = async (body: {
+    message: string;
+    filters?: string;
+    propertyIds?: string[];
+    history?: { role: string; content: string }[];
+  }): Promise<RagAnswer> => {
+    const { data } = await axios.post<RagAnswer>(
+      `${API_URL}/api/chat/answer`,
+      body
+    );
+    if (data.context_ids?.length) {
+      lastResultIds.current = data.context_ids;
+      sessionStorage.setItem("aiChatResultIds", JSON.stringify(data.context_ids));
+    }
+    if (data.properties) {
+      setProperties(data.properties);
+      setIsAISearch(true);
+    }
+    return data;
+  };
+
   const classifyUserIntent = async (message: string): Promise<string> => {
     try {
       const response = await axios.post(`${API_URL}/api/chat/classify`, {
         message,
+        hasResults: lastResultIds.current.length > 0,
+        lastAssistantMessage: lastAiMessage(),
       });
       return response.data.intent;
     } catch (error) {
@@ -216,16 +284,11 @@ export function AiChatPanel({
 
           console.log(aiGeneratedFilters.data.reply);
 
-          const response = await axios.post(
-            `${API_URL}/api/properties/search`,
-            {
-              filters: aiGeneratedFilters.data.reply,
-            }
-          );
-
-          const properties = response.data;
-          setProperties(properties); // Update the properties state with the API response
-          setIsAISearch(true); // Mark as AI search results
+          // Retrieve matching listings and get an AI answer written from them
+          const answer = await askRag({
+            message: userMessageContent,
+            filters: aiGeneratedFilters.data.reply,
+          });
 
           const responseTime = (
             (performance.now() - chatStartTimeRef.current) /
@@ -238,11 +301,36 @@ export function AiChatPanel({
           const aiResponse: ChatMessage = {
             id: (Date.now() + 1).toString(),
             type: "ai",
-            content: `I found ${properties.length} properties matching your criteria. Check them out on the map!`,
+            content: answer.reply,
             timestamp: new Date(),
           };
 
           setMessages((prev) => [...prev, aiResponse]);
+        } else if (intent === "followup") {
+          // Follow-up about the listings already shown: same listings + recent chat
+          const answer = await askRag({
+            message: userMessageContent,
+            propertyIds: lastResultIds.current,
+            history: recentHistory(),
+          });
+
+          const responseTime = (
+            (performance.now() - chatStartTimeRef.current) /
+            1000
+          ).toFixed(2);
+          console.log(
+            `⏱️ CHATBOT PERFORMANCE: Response received in ${responseTime} seconds`
+          );
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: (Date.now() + 1).toString(),
+              type: "ai",
+              content: answer.reply,
+              timestamp: new Date(),
+            },
+          ]);
         } else if (intent === "question") {
           const backendResponse = await axios.post(
             `${API_URL}/api/chat/questions`,
@@ -358,16 +446,13 @@ export function AiChatPanel({
             const normalizedPreferences = normalizePreferences(preferences);
             console.log("Normalized preferences:", normalizedPreferences);
 
-            const response = await axios.post(
-              `${API_URL}/api/properties/search`,
-              {
-                filters: JSON.stringify(normalizedPreferences),
-              }
-            );
-
-            const properties = response.data;
-            setProperties(properties);
-            setIsAISearch(true);
+            // Retrieve matching listings and get an AI answer written from them
+            const answer = await askRag({
+              message: `Find properties matching my preferences: ${JSON.stringify(
+                normalizedPreferences
+              )}`,
+              filters: JSON.stringify(normalizedPreferences),
+            });
 
             const responseTime = (
               (performance.now() - chatStartTimeRef.current) /
@@ -380,7 +465,7 @@ export function AiChatPanel({
             const aiResponse: ChatMessage = {
               id: (Date.now() + 1).toString(),
               type: "ai",
-              content: `I found ${properties.length} properties matching your preferences. Check them out on the map!`,
+              content: answer.reply,
               timestamp: new Date(),
             };
             setMessages((prev) => [...prev, aiResponse]);
@@ -570,7 +655,9 @@ export function AiChatPanel({
                     <p className="text-sm text-gray-700">
                       {message.content.split("\n").map((line, index) => (
                         <React.Fragment key={index}>
-                          {line}
+                          {/^\s*[-*]\s+/.test(line)
+                            ? <>• {renderInline(line.replace(/^\s*[-*]\s+/, ""))}</>
+                            : renderInline(line)}
                           <br />
                         </React.Fragment>
                       ))}
