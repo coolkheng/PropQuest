@@ -4,13 +4,13 @@ import React from "react";
 import axios from "axios";
 import { Property } from "../app/page"; // Import the Property interface
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, ThumbsUp, ThumbsDown, Send, RotateCcw } from "lucide-react";
+import { ThumbsUp, ThumbsDown, ArrowUp, RotateCcw, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
 import { AiPersonalizedToggle } from "./ai-personalized-toggle";
 import { ChatRecommendationCards, ChatCard } from "./chat-recommendation-cards";
+import { ChatMarkdown } from "./chat-markdown";
 
 interface ChatMessage {
   id: string;
@@ -77,16 +77,6 @@ const welcomeMessage = (): ChatMessage => ({
   timestamp: new Date(),
 });
 
-// Renders **bold** inside a line (the AI replies use a little Markdown).
-function renderInline(line: string) {
-  return line.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-    part.startsWith("**") && part.endsWith("**") ? (
-      <strong key={i}>{part.slice(2, -2)}</strong>
-    ) : (
-      <React.Fragment key={i}>{part}</React.Fragment>
-    )
-  );
-}
 
 interface AiChatPanelProps {
   properties: Property[];
@@ -102,6 +92,8 @@ export function AiChatPanel({
   const [aiRequest, setAiRequest] = useState("");
   const [isAiTyping, setIsAiTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isPersonalizedActive, setIsPersonalizedActive] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([welcomeMessage()]);
   const [Exisiting_preferences, setPreferences] = useState<Record<string, any>>(
@@ -479,10 +471,46 @@ export function AiChatPanel({
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+  // Enter sends, Shift+Enter adds a new line.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  // Grow the composer with its content, up to about 5 lines.
+  const resizeInput = () => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+  };
+
+  useEffect(() => {
+    resizeInput();
+  }, [aiRequest]);
+
+  const handleCopy = async (message: ChatMessage) => {
+    try {
+      try {
+        await navigator.clipboard.writeText(message.content);
+      } catch {
+        // Fallback when the Clipboard API is blocked (permissions, non-secure context).
+        const el = document.createElement("textarea");
+        el.value = message.content;
+        el.style.position = "fixed";
+        el.style.opacity = "0";
+        document.body.appendChild(el);
+        el.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(el);
+        if (!ok) throw new Error("execCommand copy failed");
+      }
+      setCopiedId(message.id);
+      setTimeout(() => setCopiedId((id) => (id === message.id ? null : id)), 1500);
+    } catch (error) {
+      console.error("Copy failed:", error);
     }
   };
 
@@ -508,20 +536,16 @@ export function AiChatPanel({
   };
 
   const TypingIndicator = () => (
-    <div className="flex justify-start">
-      <div className="bg-gray-100 p-4 rounded-2xl rounded-bl-md max-w-sm">
-        <div className="flex space-x-1">
-          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-          <div
-            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-            style={{ animationDelay: "0.1s" }}
-          ></div>
-          <div
-            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-            style={{ animationDelay: "0.2s" }}
-          ></div>
-        </div>
-      </div>
+    <div className="flex space-x-1 py-2" aria-label="AI is typing">
+      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+      <div
+        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+        style={{ animationDelay: "0.1s" }}
+      ></div>
+      <div
+        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+        style={{ animationDelay: "0.2s" }}
+      ></div>
     </div>
   );
 
@@ -587,19 +611,12 @@ export function AiChatPanel({
 
   return (
     <div className="w-full h-full bg-white flex flex-col">
-      {/* Header with Icon */}
-      <div className="p-6 text-center flex-shrink-0">
-        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <MessageSquare className="h-6 w-6 text-blue-600" />
-        </div>
-        <h2 className="text-xl font-bold text-gray-900 mb-3">
+      {/* Header: title and controls on one row, separated from the chat by a line */}
+      <div className="flex items-center justify-between gap-2 border-b border-gray-200 px-4 py-3 flex-shrink-0">
+        <h2 className="whitespace-nowrap text-base font-semibold text-gray-900">
           AI Property Search
         </h2>
-        <p className="text-sm text-gray-500 leading-relaxed mb-4">
-          Feel free to enter whatever details you like
-        </p>
-
-        <div className="flex justify-center items-center gap-2">
+        <div className="flex flex-shrink-0 items-center gap-2">
           <AiPersonalizedToggle
             isActive={isPersonalizedActive}
             onToggle={handlePersonalizedToggle}
@@ -609,116 +626,118 @@ export function AiChatPanel({
             variant="outline"
             onClick={handleNewChat}
             disabled={isAiTyping}
-            className="rounded-full flex items-center gap-1"
+            className="rounded-lg flex items-center gap-1"
+            aria-label="New chat"
+            title="New chat"
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            <span>New chat</span>
+            {/* Label only when the panel is wide enough; icon-only on smaller screens */}
+            <span className="hidden xl:inline">New chat</span>
           </Button>
         </div>
       </div>
 
-      {/* Chat Messages */}
-      <div className="flex-1 px-6 pb-6 space-y-4 overflow-y-auto">
-        {messages.map((message, index) => (
-          <div key={message.id}>
-            {message.type === "user" ? (
-              /* User Message - Right Side, Blue */
-              <div className="flex justify-end">
-                <div className="bg-blue-600 text-white p-4 rounded-2xl rounded-br-md max-w-sm">
-                  <p className="text-sm leading-relaxed">{message.content}</p>
-                  <p className="text-xs text-blue-200 mt-2" suppressHydrationWarning>
+      {/* Conversation */}
+      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6">
+        {messages.map((message, index) => {
+          if (message.type === "user") {
+            return (
+              <div key={message.id} className="flex justify-end">
+                <div className="max-w-[85%] rounded-2xl rounded-br-md bg-blue-600 px-4 py-2.5 text-[15px] leading-6 text-white whitespace-pre-wrap break-words">
+                  {message.content}
+                </div>
+              </div>
+            );
+          }
+
+          const isLast = index === messages.length - 1;
+          return (
+            <div key={message.id}>
+              {/* AI reply: full width, no bubble */}
+              <div className="text-[15px] leading-7 text-gray-800 break-words">
+                <ChatMarkdown text={message.content} />
+              </div>
+
+              {message.cards && message.cards.length > 0 && (
+                <ChatRecommendationCards cards={message.cards} />
+              )}
+
+              {isLast && !isAiTyping && (
+                <div className="mt-2 flex items-center gap-1 text-gray-400">
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(message)}
+                    className="rounded-md p-1.5 hover:bg-gray-100 hover:text-gray-700"
+                    aria-label="Copy reply"
+                    title="Copy"
+                  >
+                    {copiedId === message.id ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleFeedback(message.id, "like")}
+                    className="rounded-md p-1.5 hover:bg-gray-100 hover:text-gray-700"
+                    aria-label="Good response"
+                    title="Good response"
+                  >
+                    <ThumbsUp className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleFeedback(message.id, "dislike")}
+                    className="rounded-md p-1.5 hover:bg-gray-100 hover:text-gray-700"
+                    aria-label="Bad response"
+                    title="Bad response"
+                  >
+                    <ThumbsDown className="h-4 w-4" />
+                  </button>
+                  <span className="ml-1 text-xs" suppressHydrationWarning>
                     {message.timestamp.toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              /* AI Response - Left Side, Grey */
-              <div className="flex justify-start">
-                <div className="space-y-3 max-w-sm">
-                  <div className="bg-gray-100 p-4 rounded-2xl rounded-bl-md">
-                    <p className="text-sm text-gray-700">
-                      {message.content.split("\n").map((line, index) => (
-                        <React.Fragment key={index}>
-                          {/^\s*[-*]\s+/.test(line)
-                            ? <>• {renderInline(line.replace(/^\s*[-*]\s+/, ""))}</>
-                            : renderInline(line)}
-                          <br />
-                        </React.Fragment>
-                      ))}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2" suppressHydrationWarning>
-                      {message.timestamp.toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {message.type === "ai" && message.cards && message.cards.length > 0 && (
-              <ChatRecommendationCards cards={message.cards} />
-            )}
-
-            {/* Feedback Buttons - Only show for AI messages and only for the last AI message */}
-            {message.type === "ai" &&
-              index === messages.length - 1 &&
-              !isAiTyping && (
-                <div className="flex justify-start mt-2">
-                  <div className="flex space-x-3">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="p-2 rounded-full hover:bg-blue-50 bg-transparent"
-                      onClick={() => handleFeedback(message.id, "like")}
-                    >
-                      <ThumbsUp className="h-4 w-4 text-blue-600" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="p-2 rounded-full hover:bg-gray-50 bg-transparent"
-                      onClick={() => handleFeedback(message.id, "dislike")}
-                    >
-                      <ThumbsDown className="h-4 w-4 text-gray-400" />
-                    </Button>
-                  </div>
+                  </span>
                 </div>
               )}
-          </div>
-        ))}
+            </div>
+          );
+        })}
 
-        {/* Typing Indicator */}
         {isAiTyping && <TypingIndicator />}
 
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Section */}
-      <div className="p-6 border-t border-gray-100 flex-shrink-0">
-        <div className="flex space-x-3">
-          <Input
-            type="text"
-            placeholder="Enter your request here"
+      {/* Composer */}
+      <div className="px-5 pb-4 pt-2 flex-shrink-0">
+        <div className="flex items-end gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2 shadow-sm focus-within:border-gray-400">
+          <textarea
+            ref={inputRef}
+            rows={1}
+            placeholder={isAiTyping ? "Waiting for reply..." : "Ask about properties..."}
             value={aiRequest}
             onChange={(e) => setAiRequest(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             disabled={isAiTyping}
-            className="flex-1 border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
+            className="flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-6 text-gray-900 placeholder:text-gray-400 focus:outline-none disabled:opacity-60"
           />
-          <Button
+          <button
+            type="button"
             onClick={handleSendMessage}
             disabled={aiRequest.trim() === "" || isAiTyping}
-            className="bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-6 flex items-center space-x-2 disabled:opacity-50"
+            className="mb-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-700 disabled:bg-gray-200 disabled:text-gray-400"
+            aria-label="Send message"
           >
-            <Send className="h-4 w-4" />
-            <span>{isAiTyping ? "..." : "Send"}</span>
-          </Button>
+            <ArrowUp className="h-4 w-4" />
+          </button>
         </div>
+        <p className="mt-2 text-center text-xs text-gray-400">
+          AI can make mistakes. Check listing details.
+        </p>
       </div>
     </div>
   );

@@ -37,7 +37,7 @@ export function ChatRecommendationCards({ cards, onCardClick }: ChatRecommendati
   if (!cards.length) return null;
 
   return (
-    <div className="mt-3 rounded-2xl border border-gray-200 bg-white">
+    <div className="mt-4 rounded-2xl border border-gray-200 bg-white">
       <p className="px-5 pt-4 text-base font-semibold text-gray-900">Recommended listings</p>
       <ul className="divide-y divide-gray-100">
         {cards.map((card, i) => (
