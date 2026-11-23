@@ -44,6 +44,12 @@ export function useSession() {
     } catch (err) {
       // ignore
     }
+    // The chat session belongs to this login; don't carry it to the next person.
+    try {
+      localStorage.removeItem("chatSessionId");
+    } catch {
+      // ignore
+    }
     setUser(null);
   }, []);
 

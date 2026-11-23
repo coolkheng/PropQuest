@@ -156,7 +156,8 @@ export default function HomePage() {
         const res = await axios.get(`${API_URL}/api/properties?limit=100`);
         // Handle new API response format
         const data = res.data.properties || res.data;
-        setProperties(Array.isArray(data) ? data : []);
+        // Don't overwrite listings the AI chat restored from its server session meanwhile.
+        setProperties((prev) => (prev.length > 0 ? prev : Array.isArray(data) ? data : []));
       } catch (error) {
         console.error("Error fetching properties:", error);
       }

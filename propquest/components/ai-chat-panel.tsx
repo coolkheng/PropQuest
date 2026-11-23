@@ -4,7 +4,7 @@ import React from "react";
 import axios from "axios";
 import { Property } from "../app/page"; // Import the Property interface
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, ThumbsUp, ThumbsDown, Send } from "lucide-react";
+import { MessageSquare, ThumbsUp, ThumbsDown, Send, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -19,17 +19,59 @@ interface ChatMessage {
   isTyping?: boolean;
 }
 
-// Response from POST /api/chat/answer (RAG: answer written from the retrieved listings)
+// Response from POST /api/chat/answer (used by the personalized flow only)
 interface RagAnswer {
   reply: string;
   recommended_ids: string[];
-  context_ids: string[]; // listings the model saw; sent back for follow-ups
-  properties?: Property[]; // only for new searches, not follow-ups
+  properties?: Property[];
   fallback?: boolean;
 }
 
-// How many earlier messages go with a follow-up (backend caps this too).
-const RAG_HISTORY_MESSAGES = 4;
+// Response from POST /api/chat/message. Memory lives on the server; the browser
+// only keeps the session id.
+interface ChatMessageResponse {
+  sessionId: string;
+  intent: "search" | "followup" | "question" | "unknown";
+  reply: string;
+  properties?: Property[]; // only when a search ran
+  recommended_ids: string[];
+  filters?: Record<string, any>;
+  fallback?: boolean;
+}
+
+// Response from GET /api/chat/session/:id (restore after reload)
+interface ChatSessionView {
+  sessionId: string;
+  messages: { role: "user" | "assistant"; content: string; at: string }[];
+  properties?: Property[];
+}
+
+const CHAT_SESSION_KEY = "chatSessionId";
+
+const readSessionId = () => {
+  try {
+    return localStorage.getItem(CHAT_SESSION_KEY);
+  } catch {
+    return null;
+  }
+};
+const writeSessionId = (id: string | null) => {
+  try {
+    if (id) localStorage.setItem(CHAT_SESSION_KEY, id);
+    else localStorage.removeItem(CHAT_SESSION_KEY);
+  } catch {
+    // storage unavailable: the chat still works, it just won't survive a reload
+  }
+};
+
+// UI-only greeting: never stored or sent as conversation.
+const welcomeMessage = (): ChatMessage => ({
+  id: "welcome",
+  type: "ai",
+  content:
+    "Hi! I'm your AI assistant. Here’s what I can help you with:\n🏠 1. Answer property-related questions  \n🎯 2. Recommend properties that fit your preferences  \n🔍 3. Find property based on your criteria  \n📈 4. Show market price trends and insights  ",
+  timestamp: new Date(),
+});
 
 // Renders **bold** inside a line (the AI replies use a little Markdown).
 function renderInline(line: string) {
@@ -57,15 +99,7 @@ export function AiChatPanel({
   const [isAiTyping, setIsAiTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isPersonalizedActive, setIsPersonalizedActive] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "2",
-      type: "ai",
-      content:
-        "Hi! I'm your AI assistant. Here’s what I can help you with:\n🏠 1. Answer property-related questions  \n🎯 2. Recommend properties that fit your preferences  \n🔍 3. Find property based on your criteria  \n📈 4. Show market price trends and insights  ",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([welcomeMessage()]);
   const [Exisiting_preferences, setPreferences] = useState<Record<string, any>>(
     {}
   ); // Initialize preferences state
@@ -74,8 +108,8 @@ export function AiChatPanel({
   const question_asking_preferences = useRef("");
   const conversation = useRef<Array<{ content: string }>>([]);
   const chatStartTimeRef = useRef<number>(0);
-  // Ids of the listings the AI last talked about; lets the user ask follow-ups.
-  const lastResultIds = useRef<string[]>([]);
+  // Server-side chat session; the server holds history, filters and listings.
+  const sessionIdRef = useRef<string | null>(null);
 
   function addMessage(content: string) {
     conversation.current.push({ content });
@@ -89,30 +123,17 @@ export function AiChatPanel({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Restore chat history from sessionStorage on mount
+  // Restore on mount. Normal chat comes back from the server session; the
+  // personalized flow still keeps its own state in sessionStorage.
   useEffect(() => {
-    const savedMessages = sessionStorage.getItem("aiChatMessages");
     const savedPreferences = sessionStorage.getItem("aiChatPreferences");
     const savedConversation = sessionStorage.getItem("aiChatConversation");
     const savedIsPersonalized = sessionStorage.getItem("aiIsPersonalized");
-
-    if (savedMessages) {
-      try {
-        const parsedMessages = JSON.parse(savedMessages);
-        // Convert timestamp strings back to Date objects
-        const messagesWithDates = parsedMessages.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-        }));
-        setMessages(messagesWithDates);
-        console.log(
-          "✅ Restored AI chat history:",
-          messagesWithDates.length,
-          "messages"
-        );
-      } catch (error) {
-        console.error("Error restoring chat messages:", error);
-      }
+    let personalized = false;
+    try {
+      personalized = savedIsPersonalized ? JSON.parse(savedIsPersonalized) === true : false;
+    } catch {
+      personalized = false;
     }
 
     if (savedPreferences) {
@@ -122,7 +143,6 @@ export function AiChatPanel({
         console.error("Error restoring preferences:", error);
       }
     }
-
     if (savedConversation) {
       try {
         conversation.current = JSON.parse(savedConversation);
@@ -130,32 +150,68 @@ export function AiChatPanel({
         console.error("Error restoring conversation:", error);
       }
     }
+    setIsPersonalizedActive(personalized);
 
-    if (savedIsPersonalized) {
-      try {
-        setIsPersonalizedActive(JSON.parse(savedIsPersonalized));
-      } catch (error) {
-        console.error("Error restoring personalized state:", error);
+    if (personalized) {
+      const savedMessages = sessionStorage.getItem("aiChatMessages");
+      if (savedMessages) {
+        try {
+          setMessages(
+            JSON.parse(savedMessages).map((msg: any) => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp),
+            }))
+          );
+        } catch (error) {
+          console.error("Error restoring chat messages:", error);
+        }
       }
     }
 
-    const savedResultIds = sessionStorage.getItem("aiChatResultIds");
-    if (savedResultIds) {
-      try {
-        lastResultIds.current = JSON.parse(savedResultIds);
-      } catch (error) {
-        console.error("Error restoring result ids:", error);
-      }
-    }
+    const storedId = readSessionId();
+    if (!storedId) return;
+    sessionIdRef.current = storedId;
+    if (personalized) return;
+
+    axios
+      .get<ChatSessionView>(
+        `${API_URL}/api/chat/session/${encodeURIComponent(storedId)}`,
+        { withCredentials: true }
+      )
+      .then(({ data }) => {
+        if (data.messages.length > 0) {
+          setMessages([
+            welcomeMessage(),
+            ...data.messages.map((m, i) => ({
+              id: `${data.sessionId}-${i}`,
+              type: m.role === "user" ? ("user" as const) : ("ai" as const),
+              content: m.content,
+              timestamp: new Date(m.at),
+            })),
+          ]);
+        }
+        if (data.properties) {
+          setProperties(data.properties);
+          setIsAISearch(true);
+        }
+      })
+      .catch((error) => {
+        // Expired, deleted or someone else's session: start fresh.
+        if (error?.response?.status === 404) {
+          writeSessionId(null);
+          sessionIdRef.current = null;
+        } else {
+          console.error("Error restoring chat session:", error);
+        }
+      });
   }, []);
 
-  // Save chat history to sessionStorage whenever messages or preferences change
+  // Only the personalized flow keeps messages in the browser.
   useEffect(() => {
-    if (messages.length > 1) {
-      // Only save if there are user messages (not just welcome message)
+    if (isPersonalizedActive && messages.length > 1) {
       sessionStorage.setItem("aiChatMessages", JSON.stringify(messages));
     }
-  }, [messages]);
+  }, [messages, isPersonalizedActive]);
 
   useEffect(() => {
     if (Object.keys(Exisiting_preferences).length > 0) {
@@ -206,30 +262,26 @@ export function AiChatPanel({
     }, 500);
   };
 
-  // Last few chat messages in OpenAI format, for follow-up context.
-  const recentHistory = () =>
-    messages.slice(-RAG_HISTORY_MESSAGES).map((m) => ({
-      role: m.type === "user" ? "user" : "assistant",
-      content: m.content,
-    }));
+  // Personalized flow: search with the collected preferences.
+  const askRag = async (body: { message: string; filters: string }): Promise<RagAnswer> => {
+    const { data } = await axios.post<RagAnswer>(`${API_URL}/api/chat/answer`, body);
+    if (data.properties) {
+      setProperties(data.properties);
+      setIsAISearch(true);
+    }
+    return data;
+  };
 
-  const lastAiMessage = () =>
-    [...messages].reverse().find((m) => m.type === "ai")?.content;
-
-  // RAG: ask the backend to answer from the listings (new search or follow-up).
-  const askRag = async (body: {
-    message: string;
-    filters?: string;
-    propertyIds?: string[];
-    history?: { role: string; content: string }[];
-  }): Promise<RagAnswer> => {
-    const { data } = await axios.post<RagAnswer>(
-      `${API_URL}/api/chat/answer`,
-      body
+  // Normal chat: one call; the server loads memory, classifies, searches and saves.
+  const sendChatMessage = async (message: string): Promise<ChatMessageResponse> => {
+    const { data } = await axios.post<ChatMessageResponse>(
+      `${API_URL}/api/chat/message`,
+      { message, sessionId: sessionIdRef.current },
+      { withCredentials: true }
     );
-    if (data.context_ids?.length) {
-      lastResultIds.current = data.context_ids;
-      sessionStorage.setItem("aiChatResultIds", JSON.stringify(data.context_ids));
+    if (data.sessionId !== sessionIdRef.current) {
+      sessionIdRef.current = data.sessionId;
+      writeSessionId(data.sessionId);
     }
     if (data.properties) {
       setProperties(data.properties);
@@ -238,18 +290,19 @@ export function AiChatPanel({
     return data;
   };
 
-  const classifyUserIntent = async (message: string): Promise<string> => {
-    try {
-      const response = await axios.post(`${API_URL}/api/chat/classify`, {
-        message,
-        hasResults: lastResultIds.current.length > 0,
-        lastAssistantMessage: lastAiMessage(),
-      });
-      return response.data.intent;
-    } catch (error) {
-      console.error("Error classifying user intent:", error);
-      return "unknown";
+  const handleNewChat = () => {
+    const id = sessionIdRef.current;
+    if (id) {
+      axios
+        .delete(`${API_URL}/api/chat/session/${encodeURIComponent(id)}`, {
+          withCredentials: true,
+        })
+        .catch(() => {}); // the TTL cleans up if this fails
     }
+    sessionIdRef.current = null;
+    writeSessionId(null);
+    sessionStorage.removeItem("aiChatMessages");
+    setMessages([welcomeMessage()]);
   };
 
   const handleSendMessage = async () => {
@@ -271,109 +324,26 @@ export function AiChatPanel({
 
     try {
       if (!isPersonalizedActive) {
-        const intent = await classifyUserIntent(userMessageContent);
-        console.log("Classified intent:", intent);
+        const answer = await sendChatMessage(userMessageContent);
+        console.log("Intent:", answer.intent, "filters:", answer.filters);
 
-        if (intent === "search") {
-          const aiGeneratedFilters = await axios.post(
-            `${API_URL}/api/chat/search`,
-            {
-              message: userMessageContent,
-            }
-          );
+        const responseTime = (
+          (performance.now() - chatStartTimeRef.current) /
+          1000
+        ).toFixed(2);
+        console.log(
+          `⏱️ CHATBOT PERFORMANCE: Response received in ${responseTime} seconds`
+        );
 
-          console.log(aiGeneratedFilters.data.reply);
-
-          // Retrieve matching listings and get an AI answer written from them
-          const answer = await askRag({
-            message: userMessageContent,
-            filters: aiGeneratedFilters.data.reply,
-          });
-
-          const responseTime = (
-            (performance.now() - chatStartTimeRef.current) /
-            1000
-          ).toFixed(2);
-          console.log(
-            `⏱️ CHATBOT PERFORMANCE: Response received in ${responseTime} seconds`
-          );
-
-          const aiResponse: ChatMessage = {
+        setMessages((prev) => [
+          ...prev,
+          {
             id: (Date.now() + 1).toString(),
             type: "ai",
             content: answer.reply,
             timestamp: new Date(),
-          };
-
-          setMessages((prev) => [...prev, aiResponse]);
-        } else if (intent === "followup") {
-          // Follow-up about the listings already shown: same listings + recent chat
-          const answer = await askRag({
-            message: userMessageContent,
-            propertyIds: lastResultIds.current,
-            history: recentHistory(),
-          });
-
-          const responseTime = (
-            (performance.now() - chatStartTimeRef.current) /
-            1000
-          ).toFixed(2);
-          console.log(
-            `⏱️ CHATBOT PERFORMANCE: Response received in ${responseTime} seconds`
-          );
-
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: (Date.now() + 1).toString(),
-              type: "ai",
-              content: answer.reply,
-              timestamp: new Date(),
-            },
-          ]);
-        } else if (intent === "question") {
-          const backendResponse = await axios.post(
-            `${API_URL}/api/chat/questions`,
-            {
-              message: userMessageContent,
-            }
-          );
-
-          const responseTime = (
-            (performance.now() - chatStartTimeRef.current) /
-            1000
-          ).toFixed(2);
-          console.log(
-            `⏱️ CHATBOT PERFORMANCE: Response received in ${responseTime} seconds`
-          );
-
-          const aiResponse: ChatMessage = {
-            id: (Date.now() + 1).toString(),
-            type: "ai",
-            content: backendResponse.data.reply,
-            timestamp: new Date(),
-          };
-
-          setMessages((prev) => [...prev, aiResponse]);
-        } else if (intent === "unknown") {
-          const responseTime = (
-            (performance.now() - chatStartTimeRef.current) /
-            1000
-          ).toFixed(2);
-          console.log(
-            `⏱️ CHATBOT PERFORMANCE: Response received in ${responseTime} seconds`
-          );
-
-          const aiResponse: ChatMessage = {
-            id: (Date.now() + 1).toString(),
-            type: "ai",
-            content:
-              "Sorry, I couldn't process your request. Could you please rephrase with more specific words ?",
-            timestamp: new Date(),
-          };
-
-          setMessages((prev) => [...prev, aiResponse]);
-        }
+          },
+        ]);
       }
 
       // Handle AI Personalized Toggle
@@ -622,11 +592,21 @@ export function AiChatPanel({
           Feel free to enter whatever details you like
         </p>
 
-        <div className="flex justify-center">
+        <div className="flex justify-center items-center gap-2">
           <AiPersonalizedToggle
             isActive={isPersonalizedActive}
             onToggle={handlePersonalizedToggle}
           />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleNewChat}
+            disabled={isAiTyping}
+            className="rounded-full flex items-center gap-1"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span>New chat</span>
+          </Button>
         </div>
       </div>
 
@@ -639,7 +619,7 @@ export function AiChatPanel({
               <div className="flex justify-end">
                 <div className="bg-blue-600 text-white p-4 rounded-2xl rounded-br-md max-w-sm">
                   <p className="text-sm leading-relaxed">{message.content}</p>
-                  <p className="text-xs text-blue-200 mt-2">
+                  <p className="text-xs text-blue-200 mt-2" suppressHydrationWarning>
                     {message.timestamp.toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
@@ -662,7 +642,7 @@ export function AiChatPanel({
                         </React.Fragment>
                       ))}
                     </p>
-                    <p className="text-xs text-gray-500 mt-2">
+                    <p className="text-xs text-gray-500 mt-2" suppressHydrationWarning>
                       {message.timestamp.toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
