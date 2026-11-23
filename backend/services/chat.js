@@ -12,6 +12,7 @@ const {
   logContextSize,
 } = require("./rag");
 const memory = require("./memory");
+const { semanticRank } = require("./embeddings");
 const {
   RAG_ANSWER_TEXT,
   INTENT_CLASSIFICATION_TEXT,
@@ -21,6 +22,7 @@ const {
 } = require("../prompts/chat.prompts");
 
 const MAX_CARDS = 3;
+const SEMANTIC_K = 50; // how many of the filter matches get ranked by meaning
 
 const UNKNOWN_REPLY =
   "Sorry, I couldn't process your request. Could you please rephrase with more specific words?";
@@ -37,6 +39,8 @@ const FILTER_FIELDS = {
   lease_type: { type: "string", nullable: true },
   furnishing: { type: "string", nullable: true },
   facilities: { type: "array", items: { type: "string" }, nullable: true },
+  // Descriptive wishes with no field ("quiet, near LRT"): ranked by embeddings, not filtered.
+  semantic_query: { type: "string", nullable: true },
 };
 
 // ---------- AI calls ----------
@@ -211,9 +215,56 @@ async function answerQuestion(message, history = []) {
 
 // ---------- Retrieval ----------
 
+// Same development is often posted by several agents; keep one per title in the top list.
+function pickTop(results, n) {
+  const titleKey = (p) => String(p.title || p._id).toLowerCase().replace(/\s+/g, " ").trim();
+  const seen = new Set();
+  const unique = [];
+  const repeats = [];
+  for (const p of results) {
+    const key = titleKey(p);
+    (seen.has(key) ? repeats : unique).push(p);
+    seen.add(key);
+    if (unique.length === n) break;
+  }
+  return [...unique, ...repeats].slice(0, n); // fall back to repeats only if too few titles
+}
+
+// Hybrid retrieval: MongoDB filters decide WHICH listings match (hard rules), then the
+// embeddings decide the ORDER when the user described something ("quiet, near LRT").
+// Without a description, or if the embedding service is down, order by value (psf).
 async function runSearch(db, filters) {
-  const results = sortByValue(await searchProperties(db, parseFilters(filters)));
-  return { results, top: results.slice(0, RAG_TOP_N) };
+  const matches = await searchProperties(db, parseFilters(filters));
+  let results = sortByValue(matches);
+  const relevance = new Map();
+
+  const query = filters?.semantic_query;
+  if (query && matches.length) {
+    try {
+      const ranked = await semanticRank(db, query, matches.map((p) => p._id), SEMANTIC_K);
+      ranked.forEach((r) => relevance.set(r.id, r.score));
+      const rankedIds = new Set(ranked.map((r) => r.id));
+      const byId = new Map(matches.map((p) => [String(p._id), p]));
+      results = [
+        ...ranked.map((r) => byId.get(r.id)).filter(Boolean),
+        ...results.filter((p) => !rankedIds.has(String(p._id))),
+      ];
+      console.log(`Semantic ranking "${query}": ${ranked.length} of ${matches.length} matches ranked`);
+    } catch (error) {
+      console.warn(`Semantic ranking skipped, ordering by value: ${error.message}`);
+    }
+  }
+
+  return { results, top: pickTop(results, RAG_TOP_N), relevance };
+}
+
+// Listing context for the answer model, with the semantic score when there is one.
+function contextItems(top, relevance) {
+  return top.map((p) => {
+    const item = toContextItem(p);
+    const score = relevance?.get(String(p._id));
+    return score == null ? item : { ...item, relevance: Math.round(score * 100) / 100 };
+  });
 }
 
 // ---------- Per-message flow (POST /api/chat/message) ----------
@@ -259,7 +310,7 @@ async function handleMessage(db, { sessionId, message, user }) {
     } else {
       const { filters, reset } = extracted;
       console.log(`Filters (${reset ? "new search" : "refine"}):`, filters);
-      const { results, top } = await runSearch(db, filters);
+      const { results, top, relevance } = await runSearch(db, filters);
       const stats = buildStats(results);
       properties = results;
       responseStats = stats;
@@ -274,7 +325,7 @@ async function handleMessage(db, { sessionId, message, user }) {
       try {
         const answer = await generateRagAnswer({
           history,
-          data: { filters, stats, listings: top.map(toContextItem) },
+          data: { filters, stats, listings: contextItems(top, relevance) },
           message,
         });
         ({ reply, recommended_ids: recommendedIds } = answer);

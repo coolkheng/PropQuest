@@ -8,12 +8,15 @@ Rules:
 - Prices are in RM. Format like RM 650,000 or RM 650k. psf = price per square foot.
 - Refer to listings by title (and address if titles repeat). Never write ids in the reply text.
 - If there are no matches, say so and suggest which filter to loosen.
+- When filters.semantic_query is set (e.g. "quiet, near LRT"), listings were ordered by how well their description matches it; "relevance" is that match score (higher is closer).
+  Explain the matches in those terms using ONLY facts in the listing's details/facilities (e.g. "mentions walking distance to LRT"). If a listing's DATA does not confirm a wish, say it is not mentioned; never claim it.
+  semantic_query only ORDERS the matches, it never removes listings: do not call it a filter, and never suggest removing it to get more matches.
 
 recommendations (shown to the user as preview cards under your reply):
-- Pick up to 3 listings from DATA.listings, best first. For a follow-up, only include the listings your answer singles out (e.g. "which is the biggest?" → 1); use [] when the answer singles out none.
+- Pick up to 3 listings from DATA.listings, best first. With a semantic_query, prefer listings whose details actually confirm the wish. For a follow-up, only include the listings your answer singles out (e.g. "which is the biggest?" → 1); use [] when the answer singles out none.
 - Prefer variety: do not pick two listings with the same title (often duplicate ads of the same development) unless the user asks for that development.
 - badge: 1-3 words saying why it stands out, e.g. "Best value", "Best choice", "Most spacious", "Premium option", "Lowest price". You decide which listing is the best value from price, psf, size and facilities. Use "Best value" for at most one listing.
-- highlights: 2-3 short facts (max ~8 words each) taken ONLY from that listing's DATA: tenure, furnishing, facilities, size, beds, price history. Do not repeat its price, psf, beds, baths or sqft; those are already on the card.
+- highlights: 2-3 short facts (max ~8 words each) taken ONLY from that listing's DATA: tenure, furnishing, facilities, size, beds, price history. With a semantic_query, lead with the fact that matches it (e.g. "Walking distance to LRT Lembah Subang"). Do not repeat its price, psf, beds, baths or sqft; those are already on the card.
 
 reply:
 - The cards carry the listing details, so keep the reply short: a one-line summary, then at most 2 short bullet points about the overall picture (stats, trade-offs). Do not repeat card facts. Use Markdown bold for listing names.`;
@@ -23,6 +26,8 @@ Classify the user's intent into one of these three:
 - "search" (the user wants to find,search properties)
 - "question" (ONLY WHEN the user asks about your job,property info or concepts)
 - "unknown (if the intent is unclear and when search question does not specific enough )"
+A request that describes the home the user wants is "search", even without a location or budget,
+e.g. "a quiet home near the LRT", "renovated house with high ceiling", "something good for a family with kids".
 Return only JSON.`;
 
 // Added to the classifier prompt only when listings are currently shown to the user.
@@ -63,7 +68,9 @@ Decide first:
 
 Rules:
 - Only use values the user said or values already in CURRENT_FILTERS. Never invent values.
-- Vague words with no matching field ("premium", "nice", "quiet") are left out. Never put them in house_type or other category fields.
+- semantic_query: descriptive wishes that have NO matching field go here as a short English phrase, e.g. "quiet, near LRT", "renovated with high ceiling", "family-friendly, near schools", "unblocked view". Leave it null when there are none.
+  Never repeat what other fields already capture (location, type, budget, beds, baths, size, tenure, furnishing, facilities), and never put descriptive words in house_type or other category fields.
+  On a refine (reset = false) keep CURRENT_FILTERS.semantic_query, add new wishes to it, and remove only what the user drops.
 - "cheaper" / "lower budget" with no number: set price_max just under CURRENT_STATS.price.median (or below the current price_max if lower), rounded to the nearest 10,000.
 - "bigger" with no number: set sqft_min just above the current sqft_min, or around 20% more than typical if none; round to the nearest 50.
 - Prices are integers in RM ("800k" = 800000, "1.2 mil" = 1200000).
