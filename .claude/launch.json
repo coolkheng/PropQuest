@@ -10,7 +10,14 @@
     {
       "name": "frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "propquest", "run", "dev"],      "port": 3000
+      "runtimeArgs": ["--prefix", "propquest", "run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "embedding-service",
+      "runtimeExecutable": "embedding-service/.venv/Scripts/python",
+      "runtimeArgs": ["-m", "uvicorn", "app:app", "--app-dir", "embedding-service", "--port", "8000"],
+      "port": 8000
     }
   ]
 }
