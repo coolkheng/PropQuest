@@ -7,6 +7,7 @@ const {
   buildStats,
   sortByValue,
   toContextItem,
+  toCard,
   findPropertiesByIds,
   logContextSize,
 } = require("./rag");
@@ -18,6 +19,8 @@ const {
   QUESTION_TEXT,
   FILTER_EXTRACTION_TEXT,
 } = require("../prompts/chat.prompts");
+
+const MAX_CARDS = 3;
 
 const UNKNOWN_REPLY =
   "Sorry, I couldn't process your request. Could you please rephrase with more specific words?";
@@ -137,7 +140,7 @@ async function generateRagAnswer({ history = [], data, message }) {
     model: OPENAI_MODEL,
     reasoning_effort: "none",
     messages,
-    max_completion_tokens: 500,
+    max_completion_tokens: 700,
     temperature: 0.3,
     response_format: {
       type: "json_schema",
@@ -148,18 +151,51 @@ async function generateRagAnswer({ history = [], data, message }) {
           type: "object",
           properties: {
             reply: { type: "string" },
-            recommended_ids: { type: "array", items: { type: "string" } },
+            recommendations: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  badge: { type: "string" },
+                  highlights: { type: "array", items: { type: "string" } },
+                },
+                required: ["id", "badge", "highlights"],
+                additionalProperties: false,
+              },
+            },
           },
-          required: ["reply", "recommended_ids"],
+          required: ["reply", "recommendations"],
           additionalProperties: false,
         },
       },
     },
   });
-  const { reply, recommended_ids } = JSON.parse(res.choices[0].message.content);
-  // Only keep ids that were actually in the context.
-  const contextIds = data.listings.map((l) => l.id);
-  return { reply, recommended_ids: recommended_ids.filter((id) => contextIds.includes(id)) };
+  const { reply, recommendations } = JSON.parse(res.choices[0].message.content);
+
+  // Only keep listings that were actually in the context; trim to card size.
+  const contextIds = new Set(data.listings.map((l) => l.id));
+  const seen = new Set();
+  const recs = (recommendations || [])
+    .filter((r) => r && contextIds.has(r.id) && !seen.has(r.id) && seen.add(r.id))
+    .slice(0, MAX_CARDS)
+    .map((r) => ({
+      id: r.id,
+      badge: String(r.badge || "").trim().slice(0, 24),
+      highlights: (r.highlights || [])
+        .map((h) => String(h).trim())
+        .filter(Boolean)
+        .slice(0, 3),
+    }));
+  return { reply, recommendations: recs, recommended_ids: recs.map((r) => r.id) };
+}
+
+// Preview cards for the recommended listings, built from docs already loaded.
+function buildCards(recommendations, docs) {
+  const byId = new Map(docs.map((d) => [String(d._id), d]));
+  return recommendations
+    .map((r) => (byId.has(r.id) ? toCard(byId.get(r.id), r) : null))
+    .filter(Boolean);
 }
 
 async function answerQuestion(message, history = []) {
@@ -201,6 +237,7 @@ async function handleMessage(db, { sessionId, message, user }) {
 
   let reply;
   let recommendedIds = [];
+  let cards = [];
   let fallback = false;
   let properties;
   let statePatch = { lastIntent: intent };
@@ -235,11 +272,13 @@ async function handleMessage(db, { sessionId, message, user }) {
       };
 
       try {
-        ({ reply, recommended_ids: recommendedIds } = await generateRagAnswer({
+        const answer = await generateRagAnswer({
           history,
           data: { filters, stats, listings: top.map(toContextItem) },
           message,
-        }));
+        });
+        ({ reply, recommended_ids: recommendedIds } = answer);
+        cards = buildCards(answer.recommendations, top);
       } catch (error) {
         console.error("RAG generation error:", error?.response?.data || error);
         reply = `I found ${results.length} properties matching your criteria. Check them out on the map!`;
@@ -251,14 +290,16 @@ async function handleMessage(db, { sessionId, message, user }) {
     const top = await findPropertiesByIds(db, state.resultIds);
     const stats = buildStats(top);
     try {
-      ({ reply, recommended_ids: recommendedIds } = await generateRagAnswer({
+      const answer = await generateRagAnswer({
         history,
         data: {
           stats: { ...stats, note: "stats over the listings being discussed" },
           listings: top.map(toContextItem),
         },
         message,
-      }));
+      });
+      ({ reply, recommended_ids: recommendedIds } = answer);
+      cards = buildCards(answer.recommendations, top);
     } catch (error) {
       console.error("RAG generation error:", error?.response?.data || error);
       reply = "Sorry, I couldn't answer that right now. Please try again.";
@@ -281,7 +322,7 @@ async function handleMessage(db, { sessionId, message, user }) {
     db,
     session._id,
     { content: message },
-    { content: reply, intent, recommendedIds, ...(fallback ? { fallback: true } : {}) },
+    { content: reply, intent, recommendedIds, cards, ...(fallback ? { fallback: true } : {}) },
     statePatch,
   );
 
@@ -292,6 +333,7 @@ async function handleMessage(db, { sessionId, message, user }) {
     properties,
     stats: responseStats,
     recommended_ids: recommendedIds,
+    cards,
     filters: responseFilters,
     ...(fallback ? { fallback: true } : {}),
   };
@@ -313,7 +355,12 @@ async function getSessionView(db, sessionId, user) {
 
   return {
     sessionId: session._id,
-    messages: (session.messages || []).map((m) => ({ role: m.role, content: m.content, at: m.at })),
+    messages: (session.messages || []).map((m) => ({
+      role: m.role,
+      content: m.content,
+      at: m.at,
+      ...(m.cards?.length ? { cards: m.cards } : {}),
+    })),
     filters: state.filters,
     stats: state.stats,
     recommended_ids: lastAssistant?.recommendedIds || [],
@@ -325,6 +372,7 @@ module.exports = {
   classifyIntent,
   extractFilters,
   generateRagAnswer,
+  buildCards,
   answerQuestion,
   handleMessage,
   getSessionView,

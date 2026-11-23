@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 
 const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
 import { AiPersonalizedToggle } from "./ai-personalized-toggle";
+import { ChatRecommendationCards, ChatCard } from "./chat-recommendation-cards";
 
 interface ChatMessage {
   id: string;
@@ -17,12 +18,14 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
   isTyping?: boolean;
+  cards?: ChatCard[]; // recommended listings shown under an AI reply
 }
 
 // Response from POST /api/chat/answer (used by the personalized flow only)
 interface RagAnswer {
   reply: string;
   recommended_ids: string[];
+  cards?: ChatCard[];
   properties?: Property[];
   fallback?: boolean;
 }
@@ -35,6 +38,7 @@ interface ChatMessageResponse {
   reply: string;
   properties?: Property[]; // only when a search ran
   recommended_ids: string[];
+  cards?: ChatCard[];
   filters?: Record<string, any>;
   fallback?: boolean;
 }
@@ -42,7 +46,7 @@ interface ChatMessageResponse {
 // Response from GET /api/chat/session/:id (restore after reload)
 interface ChatSessionView {
   sessionId: string;
-  messages: { role: "user" | "assistant"; content: string; at: string }[];
+  messages: { role: "user" | "assistant"; content: string; at: string; cards?: ChatCard[] }[];
   properties?: Property[];
 }
 
@@ -187,6 +191,7 @@ export function AiChatPanel({
               type: m.role === "user" ? ("user" as const) : ("ai" as const),
               content: m.content,
               timestamp: new Date(m.at),
+              cards: m.cards,
             })),
           ]);
         }
@@ -342,6 +347,7 @@ export function AiChatPanel({
             type: "ai",
             content: answer.reply,
             timestamp: new Date(),
+            cards: answer.cards,
           },
         ]);
       }
@@ -437,6 +443,7 @@ export function AiChatPanel({
               type: "ai",
               content: answer.reply,
               timestamp: new Date(),
+              cards: answer.cards,
             };
             setMessages((prev) => [...prev, aiResponse]);
           }
@@ -651,6 +658,10 @@ export function AiChatPanel({
                   </div>
                 </div>
               </div>
+            )}
+
+            {message.type === "ai" && message.cards && message.cards.length > 0 && (
+              <ChatRecommendationCards cards={message.cards} />
             )}
 
             {/* Feedback Buttons - Only show for AI messages and only for the last AI message */}

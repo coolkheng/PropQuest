@@ -74,6 +74,22 @@ function toContextItem(doc) {
   };
 }
 
+// Compact preview card for the chat UI: listing facts from the doc + AI badge/highlights.
+function toCard(doc, rec) {
+  return {
+    id: String(doc._id),
+    title: doc.title,
+    image: Array.isArray(doc.images) && doc.images[0] ? doc.images[0] : null,
+    price: toNumber(doc.price),
+    psf: toNumber(doc.psf),
+    beds: doc.beds ?? null,
+    baths: doc.baths ?? null,
+    sqft: toNumber(doc.sqft),
+    badge: rec.badge,
+    highlights: rec.highlights,
+  };
+}
+
 // Only keep the last few user/assistant text messages; never trust the client to cap it.
 function sanitizeHistory(history) {
   if (!Array.isArray(history)) return [];
@@ -146,6 +162,7 @@ module.exports = {
   buildStats,
   sortByValue,
   toContextItem,
+  toCard,
   sanitizeHistory,
   findPropertiesByIds,
 };

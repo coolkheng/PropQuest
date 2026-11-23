@@ -109,7 +109,7 @@ router.post("/answer", async (req, res) => {
     context_ids: top.map((p) => String(p._id)),
   };
   try {
-    const { reply, recommended_ids } = await chat.generateRagAnswer({
+    const answer = await chat.generateRagAnswer({
       history: sanitizeHistory(history),
       data: {
         ...(isFollowUp ? {} : { filters }),
@@ -118,7 +118,12 @@ router.post("/answer", async (req, res) => {
       },
       message,
     });
-    res.json({ ...payload, reply, recommended_ids });
+    res.json({
+      ...payload,
+      reply: answer.reply,
+      recommended_ids: answer.recommended_ids,
+      cards: chat.buildCards(answer.recommendations, top),
+    });
   } catch (error) {
     console.error("RAG generation error:", error?.response?.data || error);
     res.json({

@@ -6,9 +6,17 @@ Rules:
 - Never invent listings, prices, facilities or facts that are not in DATA. If DATA does not cover something (e.g. schools, transport), say so briefly.
 - "stats" describe ALL matches; "listings" are only the best-value few (lowest price per sqft) shown in detail. Make that clear when it matters.
 - Prices are in RM. Format like RM 650,000 or RM 650k. psf = price per square foot.
-- Refer to listings by title (and address if titles repeat). Never write ids in the reply text; put the ids of the listings you recommend or single out in recommended_ids instead.
+- Refer to listings by title (and address if titles repeat). Never write ids in the reply text.
 - If there are no matches, say so and suggest which filter to loosen.
-- Be concise: a one-line summary, then up to 3 short bullet points. Use Markdown bold for listing names.`;
+
+recommendations (shown to the user as preview cards under your reply):
+- Pick up to 3 listings from DATA.listings, best first. For a follow-up, only include the listings your answer singles out (e.g. "which is the biggest?" → 1); use [] when the answer singles out none.
+- Prefer variety: do not pick two listings with the same title (often duplicate ads of the same development) unless the user asks for that development.
+- badge: 1-3 words saying why it stands out, e.g. "Best value", "Best choice", "Most spacious", "Premium option", "Lowest price". You decide which listing is the best value from price, psf, size and facilities. Use "Best value" for at most one listing.
+- highlights: 2-3 short facts (max ~8 words each) taken ONLY from that listing's DATA: tenure, furnishing, facilities, size, beds, price history. Do not repeat its price, psf, beds, baths or sqft; those are already on the card.
+
+reply:
+- The cards carry the listing details, so keep the reply short: a one-line summary, then at most 2 short bullet points about the overall picture (stats, trade-offs). Do not repeat card facts. Use Markdown bold for listing names.`;
 
 const INTENT_CLASSIFICATION_TEXT = `You are an intent classifier for a property chatbot.
 Classify the user's intent into one of these three:
